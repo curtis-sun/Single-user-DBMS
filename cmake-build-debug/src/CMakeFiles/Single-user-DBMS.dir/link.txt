@@ -1,3 +1,0 @@
-"D:\Program Files\JetBrains\CLion 2020.2.4\bin\cmake\win\bin\cmake.exe" -E rm -f CMakeFiles\Single-user-DBMS.dir/objects.a
-"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\ar.exe" cr CMakeFiles\Single-user-DBMS.dir/objects.a @CMakeFiles\Single-user-DBMS.dir\objects1.rsp
-"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\g++.exe" --std=c++11 -O3 -Wall -Wextra  -g   -Wl,--whole-archive CMakeFiles\Single-user-DBMS.dir/objects.a -Wl,--no-whole-archive  -o Single-user-DBMS.exe -Wl,--out-implib,libSingle-user-DBMS.dll.a -Wl,--major-image-version,0,--minor-image-version,0 @CMakeFiles\Single-user-DBMS.dir\linklibs.rsp
