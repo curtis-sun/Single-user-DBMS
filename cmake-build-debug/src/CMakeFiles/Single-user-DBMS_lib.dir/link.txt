@@ -1,0 +1,2 @@
+"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\ar.exe" qc libSingle-user-DBMS_lib.a  CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.obj
+"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\ranlib.exe" libSingle-user-DBMS_lib.a

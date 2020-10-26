@@ -1,0 +1,2 @@
+"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\ar.exe" qc libProject_lib.a  CMakeFiles/Project_lib.dir/recordmanager/RecordManager.obj
+"D:\Program Files (x86)\Dev-Cpp\MinGW64\bin\ranlib.exe" libProject_lib.a
