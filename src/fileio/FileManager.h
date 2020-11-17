@@ -105,6 +105,9 @@ public:
 		_createFile(name);
 		return true;
 	}
+	bool destroyFile(const char* name) {
+		return !remove(name);
+	}
 	/*
 	 * @函数名openFile
 	 * @参数name:文件名

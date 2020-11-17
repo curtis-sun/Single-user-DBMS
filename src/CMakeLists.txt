@@ -3,6 +3,7 @@ add_subdirectory(fileio)
 add_subdirectory(recordmanager)
 add_subdirectory(systemmanager)
 add_subdirectory(utils)
+add_subdirectory(index)
 
 add_definitions(-DDEBUG)
 add_definitions("-Wall -g")

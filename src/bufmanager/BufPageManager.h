@@ -80,7 +80,7 @@ public:
 	BufType getPage(int fileID, int pageID, int& index) {
 		index = hash->findIndex(fileID, pageID);
 		if (index != -1) {
-			access(index);
+			//access(index);
 			return addr[index];
 		} else {
 			BufType b = fetchPage(fileID, pageID, index);
@@ -142,6 +142,16 @@ public:
 	void close() {
 		for (int i = 0; i < CAP; ++ i) {
 			writeBack(i);
+		}
+	}
+
+	void close(int fileID){
+		for (int i = 0; i < CAP; i ++){
+			int f, p;
+			getKey(i, f, p);
+			if (f == fileID){
+				writeBack(i);
+			}
 		}
 	}
 	/*

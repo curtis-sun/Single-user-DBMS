@@ -39,7 +39,7 @@
  * 一个表中列的上限
  */
 #define MAX_COL_NUM 31
-#define MAX_COL_NAME_LEN 128
+#define MAX_NAME_LEN 127
 /*
  * 数据库中表的个数上限
  */
@@ -57,4 +57,14 @@ typedef int(cf)(uchar*, uchar*);
 typedef uint64_t RID_t;
 int current = 0;
 int tt = 0;
+
+#define MAX_ATTR_LEN 255
+
+enum AttrType {
+    INTEGER, STRING, FLOAT
+};
+
+enum CompOp {
+    EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, NO_OP
+};
 #endif

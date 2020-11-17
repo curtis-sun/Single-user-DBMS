@@ -8,7 +8,8 @@ struct TableHeader{
     uint32_t pageCnt;
     uint16_t pminlen, slotCntPerPage;
     uint8_t columnCnt;
-    uint8_t columnOffsets[MAX_COL_NUM];
-    char columnNames[MAX_COL_NUM][MAX_COL_NAME_LEN];
+    uint16_t columnOffsets[MAX_COL_NUM];
+    AttrType columnTypes[MAX_COL_NUM];
+    char columnNames[MAX_COL_NUM][MAX_NAME_LEN];
 };
 # endif
