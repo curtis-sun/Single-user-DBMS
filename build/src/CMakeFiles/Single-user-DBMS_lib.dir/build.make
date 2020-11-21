@@ -70,9 +70,22 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.s: cmake
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.s"
 	cd /mnt/f/Github/Single-user-DBMS/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.cpp -o CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.s
 
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: src/CMakeFiles/Single-user-DBMS_lib.dir/flags.make
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/Table.cpp
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/mnt/f/Github/Single-user-DBMS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o"
+	cd /mnt/f/Github/Single-user-DBMS/build/src && /usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o -c /mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.cpp
+
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.i"
+	cd /mnt/f/Github/Single-user-DBMS/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.cpp > CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.i
+
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.s"
+	cd /mnt/f/Github/Single-user-DBMS/build/src && /usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.cpp -o CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.s
+
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: src/CMakeFiles/Single-user-DBMS_lib.dir/flags.make
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/index/IX_Manager.cpp
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/mnt/f/Github/Single-user-DBMS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/mnt/f/Github/Single-user-DBMS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o"
 	cd /mnt/f/Github/Single-user-DBMS/build/src && /usr/bin/c++  $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -o CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o -c /mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.cpp
 
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.i: cmake_force
@@ -86,16 +99,18 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.s: cmake_force
 # Object files for target Single-user-DBMS_lib
 Single__user__DBMS_lib_OBJECTS = \
 "CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o" \
+"CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o" \
 "CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o"
 
 # External object files for target Single-user-DBMS_lib
 Single__user__DBMS_lib_EXTERNAL_OBJECTS =
 
 src/libSingle-user-DBMS_lib.a: src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o
+src/libSingle-user-DBMS_lib.a: src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o
 src/libSingle-user-DBMS_lib.a: src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o
 src/libSingle-user-DBMS_lib.a: src/CMakeFiles/Single-user-DBMS_lib.dir/build.make
 src/libSingle-user-DBMS_lib.a: src/CMakeFiles/Single-user-DBMS_lib.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/mnt/f/Github/Single-user-DBMS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Linking CXX static library libSingle-user-DBMS_lib.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/mnt/f/Github/Single-user-DBMS/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Linking CXX static library libSingle-user-DBMS_lib.a"
 	cd /mnt/f/Github/Single-user-DBMS/build/src && $(CMAKE_COMMAND) -P CMakeFiles/Single-user-DBMS_lib.dir/cmake_clean_target.cmake
 	cd /mnt/f/Github/Single-user-DBMS/build/src && $(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/Single-user-DBMS_lib.dir/link.txt --verbose=$(VERBOSE)
 

@@ -19,3 +19,15 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o: ../sr
 src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o: ../src/utils/compare.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o: ../src/utils/pagedef.h
 
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/bufmanager/BufPageManager.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/bufmanager/FindReplace.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/fileio/FileManager.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/recordmanager/RecordManager.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/Table.cpp
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/Table.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/TableHeader.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/utils/MyBitMap.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/utils/MyHashMap.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/utils/MyLinkList.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/utils/pagedef.h
+

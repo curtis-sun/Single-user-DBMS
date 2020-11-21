@@ -39,11 +39,11 @@
  * 一个表中列的上限
  */
 #define MAX_COL_NUM 31
-#define MAX_NAME_LEN 127
+#define MAX_NAME_LEN 63
 /*
  * 数据库中表的个数上限
  */
-#define MAX_TB_NUM 31
+#define MAX_TB_NUM 32
 #define RELEASE 1
 typedef unsigned int* BufType;
 typedef unsigned int uint;
@@ -55,13 +55,13 @@ typedef double db;
 typedef int INT;
 typedef int(cf)(uchar*, uchar*);
 typedef uint64_t RID_t;
-int current = 0;
-int tt = 0;
+//int current = 0;
+//int tt = 0;
 
 #define MAX_ATTR_LEN 255
 
 enum AttrType {
-    INTEGER, STRING, FLOAT
+    INTEGER, STRING, FLOAT, DATE
 };
 
 enum CompOp {

@@ -26,6 +26,9 @@ bool compare(const T& a, const T& b, CompOp compOp){
 		case NE_OP:{
 			return a != b;
 		}
+		case NO_OP:{
+			return true;
+		}
 		default:{
 			return false;
 		}
@@ -63,6 +66,9 @@ bool compare(const char* a, const char* b, AttrType attrType, CompOp compOp){
 				}
 				case NE_OP:{
 					return strcmp(a, b) != 0;
+				}
+				case NO_OP:{
+					return true;
 				}
 				default:{
 					return false;

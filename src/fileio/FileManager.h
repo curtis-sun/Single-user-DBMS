@@ -10,6 +10,9 @@
 //#include "../MyLinkList.h"
 using namespace std;
 class FileManager {
+	FileManager(const FileManager&) = delete;
+	void operator =(const FileManager&) = delete;
+
 private:
 	//FileTable* ftable;
 	int fd[MAX_FILE_NUM];
@@ -32,13 +35,20 @@ private:
 		fd[fileID] = f;
 		return 0;
 	}
+	FileManager() {
+		fm = new MyBitMap(MAX_FILE_NUM, 1);
+		tm = new MyBitMap(MAX_TYPE_NUM, 1);
+	}
+	~FileManager() {
+		this->shutdown();
+	}
 public:
 	/*
 	 * FilManager构造函数
 	 */
-	FileManager() {
-		fm = new MyBitMap(MAX_FILE_NUM, 1);
-		tm = new MyBitMap(MAX_TYPE_NUM, 1);
+	static FileManager& instance(){
+		static FileManager __instance;
+		return __instance;
 	}
 	/*
 	 * @函数名writePage
@@ -132,9 +142,6 @@ public:
 	void shutdown() {
 		delete tm;
 		delete fm;
-	}
-	~FileManager() {
-		this->shutdown();
 	}
 };
 #endif

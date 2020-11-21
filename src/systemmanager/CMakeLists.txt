@@ -4,3 +4,9 @@ set(HEADERS
         ${CMAKE_CURRENT_SOURCE_DIR}/TableHeader.h
         PARENT_SCOPE
         )
+
+set(SOURCE
+        ${SOURCE}
+        ${CMAKE_CURRENT_SOURCE_DIR}/Table.cpp
+        PARENT_SCOPE
+        )

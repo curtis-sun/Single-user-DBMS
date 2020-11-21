@@ -8,17 +8,20 @@
 class RM_FileScan;
 
 class RecordManager{
-    TableHeader header;
+    TableHeader* header;
     std::string tablePath;
+    std::string tableName;
     BufPageManager* bpm;
     FileManager* fm;
     int fileID = -1;
+    uint16_t slotCntPerPage;
 
-public:  
-    void createFile();
-    void destroyFile();
-    void openFile();
-    void closeFile();
+
+public: 
+    int createFile();
+    int destroyFile();
+    int openFile();
+    int closeFile();
 
     void allocPage();
 
@@ -27,9 +30,13 @@ public:
     void updateRecord(RID_t rid, const char* data);
     void getRecord(RID_t rid, char* data);
 
-    RecordManager(std::string m_name, std::string m_path, BufPageManager* m_bpm);
+    RecordManager(std::string path, TableHeader* m_header);
+    ~RecordManager(){
+        rmdir(tablePath.c_str());
+    }
 
     RM_FileScan* fileScan;
+    char defaultRow[PAGE_SIZE];
     friend RM_FileScan;
 };
 

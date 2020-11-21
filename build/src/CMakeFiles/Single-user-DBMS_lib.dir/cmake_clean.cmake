@@ -1,6 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o"
   "CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o"
+  "CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o"
   "libSingle-user-DBMS_lib.a"
   "libSingle-user-DBMS_lib.pdb"
 )

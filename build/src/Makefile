@@ -221,6 +221,33 @@ recordmanager/RecordManager.cpp.s:
 	cd /mnt/f/Github/Single-user-DBMS/build && $(MAKE) -f src/CMakeFiles/Single-user-DBMS_lib.dir/build.make src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.s
 .PHONY : recordmanager/RecordManager.cpp.s
 
+systemmanager/Table.o: systemmanager/Table.cpp.o
+
+.PHONY : systemmanager/Table.o
+
+# target to build an object file
+systemmanager/Table.cpp.o:
+	cd /mnt/f/Github/Single-user-DBMS/build && $(MAKE) -f src/CMakeFiles/Single-user-DBMS_lib.dir/build.make src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o
+.PHONY : systemmanager/Table.cpp.o
+
+systemmanager/Table.i: systemmanager/Table.cpp.i
+
+.PHONY : systemmanager/Table.i
+
+# target to preprocess a source file
+systemmanager/Table.cpp.i:
+	cd /mnt/f/Github/Single-user-DBMS/build && $(MAKE) -f src/CMakeFiles/Single-user-DBMS_lib.dir/build.make src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.i
+.PHONY : systemmanager/Table.cpp.i
+
+systemmanager/Table.s: systemmanager/Table.cpp.s
+
+.PHONY : systemmanager/Table.s
+
+# target to generate assembly for a file
+systemmanager/Table.cpp.s:
+	cd /mnt/f/Github/Single-user-DBMS/build && $(MAKE) -f src/CMakeFiles/Single-user-DBMS_lib.dir/build.make src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.s
+.PHONY : systemmanager/Table.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -240,6 +267,9 @@ help:
 	@echo "... recordmanager/RecordManager.o"
 	@echo "... recordmanager/RecordManager.i"
 	@echo "... recordmanager/RecordManager.s"
+	@echo "... systemmanager/Table.o"
+	@echo "... systemmanager/Table.i"
+	@echo "... systemmanager/Table.s"
 .PHONY : help
 
 
