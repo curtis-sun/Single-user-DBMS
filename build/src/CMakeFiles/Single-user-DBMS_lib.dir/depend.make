@@ -22,6 +22,9 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/recordmanager/RecordManager.cpp.o: ../sr
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/bufmanager/BufPageManager.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/bufmanager/FindReplace.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/fileio/FileManager.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/index/IX_Manager.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/index/btree.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/index/btree_set.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/recordmanager/RecordManager.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/Table.cpp
 src/CMakeFiles/Single-user-DBMS_lib.dir/systemmanager/Table.cpp.o: ../src/systemmanager/Table.h

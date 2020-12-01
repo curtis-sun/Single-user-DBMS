@@ -19,7 +19,6 @@ int RecordManager::createFile(){
     RID_t nextAvailable = header->nextAvailable;
     header->nextAvailable = *(RID_t *)pagePos;
     memcpy(pagePos, &nextAvailable, 8);
-    bpm -> markDirty(index);
     return 0;
 }
 
@@ -52,6 +51,9 @@ int RecordManager::closeFile(){
     int index;
     BufType headerPos = bpm ->getPage(fileID, 0, index);
     memcpy(headerPos, header, sizeof(*header));
+    bpm ->markDirty(index);
+    BufType pagePos = bpm ->getPage(fileID, 1, index);
+    memcpy(pagePos, defaultRow, header->pminlen);
     bpm ->markDirty(index);
     bpm ->close(fileID);
     if (fm ->closeFile(fileID)){

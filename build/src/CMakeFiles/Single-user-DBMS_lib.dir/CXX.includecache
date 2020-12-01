@@ -61,6 +61,8 @@ cstdio
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
 btree_set.h
 /mnt/f/Github/Single-user-DBMS/src/index/btree_set.h
+vector
+-
 
 /mnt/f/Github/Single-user-DBMS/src/index/btree.h
 algorithm
@@ -113,8 +115,12 @@ cassert
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.h
 ../recordmanager/RecordManager.h
 /mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.h
+../index/IX_Manager.h
+/mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
 ../bufmanager/BufPageManager.h
 /mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h
+vector
+-
 
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/TableHeader.h
 ../utils/pagedef.h
@@ -152,5 +158,7 @@ sys/stat.h
 dirent.h
 -
 cstdint
+-
+string
 -
 

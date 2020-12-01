@@ -7,6 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <cstdint>
+#include <string>
 /*
  * 一个页面中的字节数
  */
@@ -66,5 +67,54 @@ enum AttrType {
 
 enum CompOp {
     EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, NO_OP
+};
+
+struct AttrVal{
+    union {
+        int i;
+        float f;
+    } val;
+    char s[];
+};
+
+template<unsigned size>
+struct MultiCol{
+    AttrVal vals[size];
+    AttrType types[size];
+    friend bool operator< (const MultiCol &a, const MultiCol &b) {
+        for(int i = 0; i < size; i ++){
+            switch(a.types[i]){
+                case INTEGER: 
+                case DATE: {
+                    if (a.vals[i].val.i < b.vals[i].val.i){
+                        return true;
+                    }
+                    if (b.vals[i].val.i < a.vals[i].val.i){
+                        return false;
+                    }
+                    break;
+                }
+                case STRING: {
+                    if (strcmp(a.vals[i].s, b.vals[i].s) < 0){
+                        return true;
+                    }
+                    if (strcmp(b.vals[i].s, a.vals[i].s) < 0){
+                        return false;
+                    }
+                    break;
+                }
+                case FLOAT: {
+                    if (a.vals[i].val.f < b.vals[i].val.f){
+                        return true;
+                    }
+                    if (b.vals[i].val.f < a.vals[i].val.f){
+                        return false;
+                    }
+                    break;
+                }
+                default: {}
+            }
+        }
+    }
 };
 #endif

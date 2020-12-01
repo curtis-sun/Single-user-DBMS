@@ -3,6 +3,7 @@
 
 # include "../utils/pagedef.h"
 # include "btree_set.h"
+# include <vector>
 
 template<typename T> 
 class Entry{
@@ -24,8 +25,9 @@ class IX_IndexScan;
 
 template<typename T> 
 class IX_Manager{
-    std::string tablePath;
+    std::string tableName;
     stx::btree_set<Entry<T>> btree;
+    std::vector<std::string> names;
 
 public:  
     void createIndex();
@@ -36,7 +38,8 @@ public:
     void insertEntry(RID_t rid, const T& data);
     void deleteEntry(RID_t rid, const T& data);
 
-    IX_Manager(std::string m_name, char** c_name, uint8_t columnCnt, std::string m_path);
+    IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], uint8_t columnCnt);
+    IX_Manager(std::string name);
 
     IX_IndexScan<T>* indexScan;
 };
@@ -54,7 +57,5 @@ public:
     //void closeScan();   
     friend IX_Manager<T>;                           
 };
-
-
 
 #endif

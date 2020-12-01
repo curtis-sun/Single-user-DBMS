@@ -11,19 +11,19 @@ void IX_Manager<T>::createIndex(){
 
 template<typename T>
 void IX_Manager<T>::openIndex(){
-    std::ifstream fin(tablePath.c_str());
+    std::ifstream fin(tableName.c_str());
     btree.restore(fin);
 }
 
 template<typename T>
 void IX_Manager<T>::closeIndex(){
-    std::ofstream fout(tablePath.c_str());
+    std::ofstream fout(tableName.c_str());
     btree.dump(fout);
 }
 
 template<typename T>
 void IX_Manager<T>::destroyIndex(){
-    remove(tablePath.c_str());
+    remove(tableName.c_str());
 }
 
 template<typename T>
@@ -37,13 +37,25 @@ void IX_Manager<T>::deleteEntry(RID_t rid, const T& data){
 }
 
 template<typename T>
-IX_Manager<T>::IX_Manager(std::string m_name, char** c_names, uint8_t columnCnt, std::string path){
-    tablePath = path + m_name;
+IX_Manager<T>::IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], uint8_t columnCnt){
+    tableName = path + "/ix";
     for(uint8_t i = 0; i < columnCnt; i ++){
-        tablePath = tablePath + "_" + c_names[i];
+        tableName = tableName + "_" + c_names[i];
+        names.push_back(c_names[i]);
     }
-    tablePath += ".ix";
 
+    indexScan = new IX_IndexScan<T>(btree);
+}
+
+template<typename T>
+IX_Manager<T>::IX_Manager(std::string name): tableName(name){
+    int oldPosition = name.find("_");
+    int position = oldPosition + 1;
+    while((position = name.find("_", position)) != std::string::npos){
+        names.push_back(name.substr(oldPosition + 1, position - oldPosition - 1));
+        oldPosition = position;
+        position ++;
+    }
     indexScan = new IX_IndexScan<T>(btree);
 }
 
