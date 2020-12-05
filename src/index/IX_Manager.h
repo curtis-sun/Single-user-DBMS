@@ -27,10 +27,8 @@ template<typename T>
 class IX_Manager{
     std::string tableName;
     stx::btree_set<Entry<T>> btree;
-    std::vector<std::string> names;
 
 public:  
-    void createIndex();
     void destroyIndex();
     void openIndex();
     void closeIndex();
@@ -38,8 +36,7 @@ public:
     void insertEntry(RID_t rid, const T& data);
     void deleteEntry(RID_t rid, const T& data);
 
-    IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], uint8_t columnCnt);
-    IX_Manager(std::string name);
+    IX_Manager(std::string path,  char c_names[][MAX_NAME_LEN], int colLen);
 
     IX_IndexScan<T>* indexScan;
 };

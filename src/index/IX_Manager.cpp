@@ -5,11 +5,6 @@
 # include <cstdio>
 
 template<typename T>
-void IX_Manager<T>::createIndex(){
-    closeIndex();
-}
-
-template<typename T>
 void IX_Manager<T>::openIndex(){
     std::ifstream fin(tableName.c_str());
     btree.restore(fin);
@@ -37,25 +32,12 @@ void IX_Manager<T>::deleteEntry(RID_t rid, const T& data){
 }
 
 template<typename T>
-IX_Manager<T>::IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], uint8_t columnCnt){
+IX_Manager<T>::IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], int colLen){
     tableName = path + "/ix";
-    for(uint8_t i = 0; i < columnCnt; i ++){
+    for(uint8_t i = 0; i < colLen; i ++){
         tableName = tableName + "_" + c_names[i];
-        names.push_back(c_names[i]);
     }
 
-    indexScan = new IX_IndexScan<T>(btree);
-}
-
-template<typename T>
-IX_Manager<T>::IX_Manager(std::string name): tableName(name){
-    int oldPosition = name.find("_");
-    int position = oldPosition + 1;
-    while((position = name.find("_", position)) != std::string::npos){
-        names.push_back(name.substr(oldPosition + 1, position - oldPosition - 1));
-        oldPosition = position;
-        position ++;
-    }
     indexScan = new IX_IndexScan<T>(btree);
 }
 

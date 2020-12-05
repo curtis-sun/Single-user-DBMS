@@ -44,18 +44,6 @@ unistd.h
 fcntl.h
 -
 
-/mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.cpp
-IX_Manager.h
-/mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
-cassert
--
-iostream
--
-fstream
--
-cstdio
--
-
 /mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
 ../utils/pagedef.h
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
@@ -86,16 +74,6 @@ iostream
 btree.h
 /mnt/f/Github/Single-user-DBMS/src/index/btree.h
 
-/mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.cpp
-RecordManager.h
-/mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.h
-cassert
--
-cstring
--
-../utils/compare.h
-/mnt/f/Github/Single-user-DBMS/src/utils/compare.h
-
 /mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.h
 ../utils/pagedef.h
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
@@ -111,6 +89,8 @@ cstring
 -
 cassert
 -
+string
+-
 
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.h
 ../recordmanager/RecordManager.h
@@ -120,6 +100,18 @@ cassert
 ../bufmanager/BufPageManager.h
 /mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h
 vector
+-
+sys/types.h
+-
+sys/stat.h
+-
+unistd.h
+-
+dirent.h
+-
+fcntl.h
+-
+stdlib.h
 -
 
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/TableHeader.h
@@ -138,12 +130,6 @@ MyLinkList.h
 
 /mnt/f/Github/Single-user-DBMS/src/utils/MyLinkList.h
 
-/mnt/f/Github/Single-user-DBMS/src/utils/compare.h
-pagedef.h
-/mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
-cstring
--
-
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
 unistd.h
 -
@@ -159,6 +145,6 @@ dirent.h
 -
 cstdint
 -
-string
+cstring
 -
 

@@ -99,6 +99,18 @@ iostream
 /mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h
 vector
 -
+sys/types.h
+-
+sys/stat.h
+-
+unistd.h
+-
+dirent.h
+-
+fcntl.h
+-
+stdlib.h
+-
 
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/TableHeader.h
 ../utils/pagedef.h
@@ -131,6 +143,6 @@ dirent.h
 -
 cstdint
 -
-string
+cstring
 -
 

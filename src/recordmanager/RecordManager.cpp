@@ -146,7 +146,7 @@ void RM_FileScan::openScan(AttrType m_attrType, int m_attrLength, int m_attrOffs
     offset = rm->slotCntPerPage - 1;
 }   
 
-int RM_FileScan::getNextEntry(char* data){
+int RM_FileScan::getNextEntry(char* data, RID_t& rid){
     while(true){
         offset ++;
         if (offset >= rm->slotCntPerPage){
@@ -161,7 +161,7 @@ int RM_FileScan::getNextEntry(char* data){
         else{
             pagePos += rm->header->pminlen;
         }
-        RID_t rid = pageID * rm->slotCntPerPage + offset;
+        rid = pageID * rm->slotCntPerPage + offset;
         if (rid != *(RID_t *)pagePos){
             continue;
         }

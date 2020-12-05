@@ -1,11 +1,13 @@
 # include "Table.h"
 # include <cstring>
 # include <cassert>
+# include <string>
 
-std::uint8_t Table::__colId(TableHeader* header, char colName[MAX_NAME_LEN]){
+std::uint8_t Table::__colId(TableHeader* header, std::string colName){
     assert(header != nullptr);
     for (int i = 0; i < header->columnCnt; i ++){
-        if (!memcmp(header->columnNames[i], colName, MAX_NAME_LEN)){
+        std::string temp = header->columnNames[i];
+        if (temp == colName){
             return i;
         }
     }
@@ -54,14 +56,6 @@ int Table::destroyTable(){
     int err = rm ->destroyFile();
     if (err){
         throw "error: drop table " + name + " fail";
-    }
-    return err;
-}
-
-int Table::openTable(){
-    int err = rm ->openFile();
-    if (err){
-        throw "error: open table " + name + " fail";
     }
     return err;
 }
@@ -135,7 +129,7 @@ void Table::showTable(){
             printf(" %-*s\n", maxDefaultLen, defaultValue);
         }
         else{
-            printf("        \n");
+            printf(" %-*s\n", maxDefaultLen, "");
         }
     }
 }
@@ -168,6 +162,7 @@ int Table::dropColumn(char colName[MAX_NAME_LEN]){
         newHeader->columnOffsets[i + 1] = newHeader->columnOffsets[i + 2] - colLen;
     }
     newHeader->pminlen = newHeader->columnOffsets[newHeader->columnCnt];
+    // 删除相应的索引
     return reorganize(newHeader);
 }
 
@@ -193,6 +188,7 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
     newHeader->pminlen = newHeader->columnOffsets[newHeader->columnCnt];
     // 检查类型转换是否可行
     // 检查现有数据是否有空数据
+    // 相应的索引改名
     return reorganize(newHeader);
 }
 
@@ -205,7 +201,8 @@ int Table::reorganize(TableHeader* newHeader){
 
     rm ->fileScan->openScan(STRING, header->pminlen, 0, NO_OP, rm->defaultRow);
     char data[header->pminlen];
-    while(!rm->fileScan->getNextEntry(data)){
+    RID_t rid;
+    while(!rm->fileScan->getNextEntry(data, rid)){
         newRm ->insertRecord(data);
     }
     err = newRm->closeFile();

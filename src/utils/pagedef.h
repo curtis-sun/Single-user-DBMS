@@ -7,7 +7,7 @@
 #include <sys/stat.h>
 #include <dirent.h>
 #include <cstdint>
-#include <string>
+#include <cstring>
 /*
  * 一个页面中的字节数
  */
@@ -74,16 +74,16 @@ struct AttrVal{
         int i;
         float f;
     } val;
+    AttrType type;
     char s[];
 };
 
-template<unsigned size>
 struct MultiCol{
-    AttrVal vals[size];
-    AttrType types[size];
+    int len;
+    AttrVal vals[];
     friend bool operator< (const MultiCol &a, const MultiCol &b) {
-        for(int i = 0; i < size; i ++){
-            switch(a.types[i]){
+        for(int i = 0; i < a.len; i ++){
+            switch(a.vals[i].type){
                 case INTEGER: 
                 case DATE: {
                     if (a.vals[i].val.i < b.vals[i].val.i){

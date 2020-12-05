@@ -57,7 +57,7 @@ class RM_FileScan {
     RM_FileScan(RecordManager* m_rm):rm(m_rm){}
 public:                                                                  
     void openScan(AttrType m_attrType, int m_attrLength, int m_attrOffset, CompOp m_compOp, const char* m_value);           
-    int getNextEntry(char* data);                   
+    int getNextEntry(char* data, RID_t& rid);                   
     //void closeScan();
     friend RecordManager;                                 
 };
