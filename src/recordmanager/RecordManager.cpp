@@ -4,6 +4,10 @@
 # include "../utils/compare.h"
 
 int RecordManager::createFile(){
+    int err = mkdir(tablePath.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
+    if (err){
+        throw "error: mkdir " + tablePath + " fail";
+    }
     if (!fm->createFile(tableName.c_str())){
         return 1;
     }
@@ -15,7 +19,7 @@ int RecordManager::createFile(){
     allocPage();
     int index;
     BufType pagePos = bpm ->getPage(fileID, 1, index);
-    memcpy(defaultRow, pagePos, header->pminlen);
+    //memcpy(defaultRow, pagePos, header->pminlen);
     RID_t nextAvailable = header->nextAvailable;
     header->nextAvailable = *(RID_t *)pagePos;
     memcpy(pagePos, &nextAvailable, 8);
@@ -28,7 +32,11 @@ int RecordManager::destroyFile(){
         return 3;
     }
     fileID = -1;
-    return 0;
+    int err = rmdir(tablePath.c_str());
+    if (err){
+        throw "error: rmdir " + tablePath + " fail";
+    }
+    return err;
 }
 
 int RecordManager::openFile(){
@@ -124,11 +132,7 @@ void RecordManager::getRecord(RID_t rid, char* data){
     memcpy(data, pagePos + 8, header->pminlen - 8);
 }
 
-RecordManager::RecordManager(std::string path, TableHeader* m_header): tablePath(path), header(m_header){
-    int err = mkdir(path.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
-    if (err){
-        throw "error: mkdir " + path + " fail";
-    }
+RecordManager::RecordManager(const std::string& path, TableHeader* m_header): tablePath(path), header(m_header){
     tableName = path + "/tb";
     bpm = &BufPageManager::instance();
     fm = bpm->fileManager;

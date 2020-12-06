@@ -3923,7 +3923,7 @@ private:
     /// serialization.
     node* restore_node(std::istream &is)
     {
-        union {
+        struct {
             node        top;
             leaf_node   leaf;
             inner_node  inner;

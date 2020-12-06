@@ -4,73 +4,72 @@
 # include <fstream>
 # include <cstdio>
 
-template<typename T>
-void IX_Manager<T>::openIndex(){
+void IX_Manager::openIndex(){
     std::ifstream fin(tableName.c_str());
     btree.restore(fin);
 }
 
-template<typename T>
-void IX_Manager<T>::closeIndex(){
+void IX_Manager::closeIndex(){
     std::ofstream fout(tableName.c_str());
     btree.dump(fout);
 }
 
-template<typename T>
-void IX_Manager<T>::destroyIndex(){
+void IX_Manager::destroyIndex(){
     remove(tableName.c_str());
 }
 
-template<typename T>
-void IX_Manager<T>::insertEntry(RID_t rid, const T& data){
-    btree.insert(Entry<T>(rid, data));
+void IX_Manager::insertEntry(const Entry& data){
+    btree.insert(data);
 }
 
-template<typename T>
-void IX_Manager<T>::deleteEntry(RID_t rid, const T& data){
-    btree.erase(Entry<T>(rid, data));
+void IX_Manager::deleteEntry(const Entry& data){
+    btree.erase(data);
 }
 
-template<typename T>
-IX_Manager<T>::IX_Manager(std::string path, char c_names[][MAX_NAME_LEN], int colLen){
+IX_Manager::IX_Manager(std::string path, std::vector<std::string>& c_names){
     tableName = path + "/ix";
-    for(uint8_t i = 0; i < colLen; i ++){
+    for(uint8_t i = 0; i < c_names.size(); i ++){
         tableName = tableName + "_" + c_names[i];
     }
-
-    indexScan = new IX_IndexScan<T>(btree);
+    keys = c_names;
+    indexScan = new IX_IndexScan(btree);
 }
 
-template<typename T>
-void IX_IndexScan<T>::openScan(const T& data, CompOp m_compOp){
+void IX_IndexScan::openScan(const Entry& data, CompOp m_compOp){
     compOp = m_compOp;
     switch(m_compOp){
         case LT_OP:{
             iter = btree.begin();
-            upperBound = btree.lower_bound(Entry<T>(0, data));
+            upperBound = btree.lower_bound(data);
+            break;
         }
         case GT_OP:{
-            iter = btree.upper_bound(Entry<T>(0, data));
+            iter = btree.upper_bound(data);
             upperBound = btree.end();
+            break;
         }
         case LE_OP:{
             iter = btree.begin();
-            upperBound = btree.upper_bound(Entry<T>(0, data));
+            upperBound = btree.upper_bound(data);
+            break;
         }
         case GE_OP:{
-            iter = btree.lower_bound(Entry<T>(0, data));
+            iter = btree.lower_bound(data);
             upperBound = btree.end();
+            break;
         }
         case EQ_OP:{
-            std::pair<typename stx::btree_set<Entry<T>>::iterator, typename stx::btree_set<Entry<T>>::iterator> pair = btree.equal_range(Entry<T>(0, data));
+            std::pair<typename stx::btree_set<Entry>::iterator, typename stx::btree_set<Entry>::iterator> pair = btree.equal_range(data);
             iter = pair.first;
             upperBound = pair.second;
+            break;
         }
         case NE_OP:{
-            std::pair<typename stx::btree_set<Entry<T>>::iterator, typename stx::btree_set<Entry<T>>::iterator> pair = btree.equal_range(Entry<T>(0, data));
+            std::pair<typename stx::btree_set<Entry>::iterator, typename stx::btree_set<Entry>::iterator> pair = btree.equal_range(data);
             iter = btree.begin();
             lowerBound = pair.first;
             upperBound = pair.second;
+            break;
         }
         default: {
             iter = btree.begin();
@@ -79,8 +78,7 @@ void IX_IndexScan<T>::openScan(const T& data, CompOp m_compOp){
     }
 }
 
-template<typename T>
-int IX_IndexScan<T>::getNextEntry(RID_t& rid){
+int IX_IndexScan::getNextEntry(RID_t& rid){
     switch(compOp){
         case NE_OP:{
             if (iter == lowerBound){
@@ -89,6 +87,7 @@ int IX_IndexScan<T>::getNextEntry(RID_t& rid){
             if (iter == btree.end()){
                 return -1;
             }
+            break;
         }
         default: {
             if (iter == upperBound){

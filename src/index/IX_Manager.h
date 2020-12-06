@@ -5,54 +5,92 @@
 # include "btree_set.h"
 # include <vector>
 
-template<typename T> 
-class Entry{
-public:
-  RID_t rid;
-  T val;
-
-  Entry(RID_t r, const T& v){
-    rid = r;
-    val = v;
-  }
-  friend bool operator< (const Entry &a, const Entry &b) {
-    return a.val < b.val;
-  }
+struct AttrVal{
+    union {
+        int i;
+        float f;
+    } val;
+    AttrType type = NO_TYPE;
+    char s[];
 };
 
-template<typename T> 
+struct Entry{
+    RID_t rid;
+    AttrVal vals[MAX_IX_NUM];
+    bool operator< (const Entry &b) const {
+        for(int i = 0; i < MAX_IX_NUM; i ++){
+            switch(vals[i].type){
+                case INTEGER: 
+                case DATE: {
+                    if (vals[i].val.i < b.vals[i].val.i){
+                        return true;
+                    }
+                    if (b.vals[i].val.i < vals[i].val.i){
+                        return false;
+                    }
+                    break;
+                }
+                case STRING: {
+                    if (strcmp(vals[i].s, b.vals[i].s) < 0){
+                        return true;
+                    }
+                    if (strcmp(b.vals[i].s, vals[i].s) < 0){
+                        return false;
+                    }
+                    break;
+                }
+                case FLOAT: {
+                    if (vals[i].val.f < b.vals[i].val.f){
+                        return true;
+                    }
+                    if (b.vals[i].val.f < vals[i].val.f){
+                        return false;
+                    }
+                    break;
+                }
+                default: {
+                    return false;
+                }
+            }
+        }
+        return false;
+    }
+};
+
 class IX_IndexScan;
 
-template<typename T> 
 class IX_Manager{
     std::string tableName;
-    stx::btree_set<Entry<T>> btree;
+    stx::btree_set<Entry> btree;
 
 public:  
     void destroyIndex();
     void openIndex();
     void closeIndex();
 
-    void insertEntry(RID_t rid, const T& data);
-    void deleteEntry(RID_t rid, const T& data);
+    void insertEntry(const Entry& data);
+    void deleteEntry(const Entry& data);
 
-    IX_Manager(std::string path,  char c_names[][MAX_NAME_LEN], int colLen);
+    IX_Manager(std::string path, std::vector<std::string>& c_names);
+    ~IX_Manager(){
+        delete indexScan;
+    }
 
-    IX_IndexScan<T>* indexScan;
+    IX_IndexScan* indexScan;
+    std::vector<std::string> keys;
 };
 
-template<typename T> 
 class IX_IndexScan { 
-    stx::btree_set<Entry<T>>& btree;
     CompOp compOp;
+    stx::btree_set<Entry>& btree;
 
-    IX_IndexScan(stx::btree_set<Entry<T>>& b): btree(b){}  
+    IX_IndexScan(stx::btree_set<Entry>& b): btree(b){}  
 public: 
-    typename stx::btree_set<Entry<T>>::iterator iter, lowerBound, upperBound;                                                                
-    void openScan(const T& data, CompOp m_compOp);           
+    typename stx::btree_set<Entry>::iterator iter, lowerBound, upperBound;                                                                
+    void openScan(const Entry& data, CompOp m_compOp);           
     int getNextEntry(RID_t& rid);                   
     //void closeScan();   
-    friend IX_Manager<T>;                           
+    friend IX_Manager;                           
 };
 
 #endif

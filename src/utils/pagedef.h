@@ -60,61 +60,13 @@ typedef uint64_t RID_t;
 //int tt = 0;
 
 #define MAX_ATTR_LEN 255
+#define MAX_IX_NUM 16
 
 enum AttrType {
-    INTEGER, STRING, FLOAT, DATE
+    INTEGER, STRING, FLOAT, DATE, NO_TYPE
 };
 
 enum CompOp {
     EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, NO_OP
-};
-
-struct AttrVal{
-    union {
-        int i;
-        float f;
-    } val;
-    AttrType type;
-    char s[];
-};
-
-struct MultiCol{
-    int len;
-    AttrVal vals[];
-    friend bool operator< (const MultiCol &a, const MultiCol &b) {
-        for(int i = 0; i < a.len; i ++){
-            switch(a.vals[i].type){
-                case INTEGER: 
-                case DATE: {
-                    if (a.vals[i].val.i < b.vals[i].val.i){
-                        return true;
-                    }
-                    if (b.vals[i].val.i < a.vals[i].val.i){
-                        return false;
-                    }
-                    break;
-                }
-                case STRING: {
-                    if (strcmp(a.vals[i].s, b.vals[i].s) < 0){
-                        return true;
-                    }
-                    if (strcmp(b.vals[i].s, a.vals[i].s) < 0){
-                        return false;
-                    }
-                    break;
-                }
-                case FLOAT: {
-                    if (a.vals[i].val.f < b.vals[i].val.f){
-                        return true;
-                    }
-                    if (b.vals[i].val.f < a.vals[i].val.f){
-                        return false;
-                    }
-                    break;
-                }
-                default: {}
-            }
-        }
-    }
 };
 #endif

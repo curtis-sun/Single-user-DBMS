@@ -91,16 +91,6 @@ cassert
 -
 string
 -
-
-/mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.h
-../recordmanager/RecordManager.h
-/mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.h
-../index/IX_Manager.h
-/mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
-../bufmanager/BufPageManager.h
-/mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h
-vector
--
 sys/types.h
 -
 sys/stat.h
@@ -112,6 +102,18 @@ dirent.h
 fcntl.h
 -
 stdlib.h
+-
+cmath
+-
+
+/mnt/f/Github/Single-user-DBMS/src/systemmanager/Table.h
+../recordmanager/RecordManager.h
+/mnt/f/Github/Single-user-DBMS/src/recordmanager/RecordManager.h
+../index/IX_Manager.h
+/mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
+../bufmanager/BufPageManager.h
+/mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h
+vector
 -
 
 /mnt/f/Github/Single-user-DBMS/src/systemmanager/TableHeader.h
