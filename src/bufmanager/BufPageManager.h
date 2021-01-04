@@ -35,8 +35,8 @@ struct BufPageManager {
 	}
 	~BufPageManager() = default;
 public:
-	static BufPageManager& instance(){
-		static BufPageManager __instance(&FileManager::instance());
+	static BufPageManager* instance(){
+		static BufPageManager* __instance = new BufPageManager(FileManager::instance());
 		return __instance;
 	}
 	int last;

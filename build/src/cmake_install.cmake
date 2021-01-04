@@ -39,12 +39,13 @@ endif()
 
 if(NOT CMAKE_INSTALL_LOCAL_ONLY)
   # Include the install script for each subdirectory.
+  include("/mnt/f/Github/Single-user-DBMS/build/src/utils/cmake_install.cmake")
   include("/mnt/f/Github/Single-user-DBMS/build/src/bufmanager/cmake_install.cmake")
   include("/mnt/f/Github/Single-user-DBMS/build/src/fileio/cmake_install.cmake")
   include("/mnt/f/Github/Single-user-DBMS/build/src/recordmanager/cmake_install.cmake")
-  include("/mnt/f/Github/Single-user-DBMS/build/src/systemmanager/cmake_install.cmake")
-  include("/mnt/f/Github/Single-user-DBMS/build/src/utils/cmake_install.cmake")
   include("/mnt/f/Github/Single-user-DBMS/build/src/index/cmake_install.cmake")
+  include("/mnt/f/Github/Single-user-DBMS/build/src/systemmanager/cmake_install.cmake")
+  include("/mnt/f/Github/Single-user-DBMS/build/src/querymanager/cmake_install.cmake")
 
 endif()
 

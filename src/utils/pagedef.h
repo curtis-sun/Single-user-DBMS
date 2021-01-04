@@ -6,8 +6,8 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <dirent.h>
-#include <cstdint>
-#include <cstring>
+#include <stdint.h>
+#include <string.h>
 /*
  * 一个页面中的字节数
  */
@@ -67,6 +67,19 @@ enum AttrType {
 };
 
 enum CompOp {
-    EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, NO_OP
+    EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, IS_NULL, NOT_NULL
+};
+
+enum CalcOp {
+    OR_OP, AND_OP
+};
+
+struct AttrVal{
+    union {
+        int i;
+        float f;
+    } val;
+    AttrType type = NO_TYPE;
+    char s[MAX_ATTR_LEN];
 };
 #endif

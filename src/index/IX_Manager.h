@@ -5,15 +5,6 @@
 # include "btree_set.h"
 # include <vector>
 
-struct AttrVal{
-    union {
-        int i;
-        float f;
-    } val;
-    AttrType type = NO_TYPE;
-    char s[];
-};
-
 struct Entry{
     RID_t rid;
     AttrVal vals[MAX_IX_NUM];
@@ -60,9 +51,10 @@ struct Entry{
 class IX_IndexScan;
 
 class IX_Manager{
-    std::string tableName;
     stx::btree_set<Entry> btree;
+    std::string ixPath;
 
+    std::string __indexName();
 public:  
     void destroyIndex();
     void openIndex();
@@ -71,13 +63,17 @@ public:
     void insertEntry(const Entry& data);
     void deleteEntry(const Entry& data);
 
-    IX_Manager(std::string path, std::vector<std::string>& c_names);
+    IX_Manager(const std::string& path, const std::string& name, const std::vector<std::string>& c_names);
+    IX_Manager(const std::string& path, const std::string& name, const std::vector<std::string>& c_names, const std::string& m_refTbName, const std::vector<std::string>& m_refKeys);
     ~IX_Manager(){
         delete indexScan;
     }
 
     IX_IndexScan* indexScan;
     std::vector<std::string> keys;
+    std::string ixName;
+    std::string refTbName;
+    std::vector<std::string> refKeys;
 };
 
 class IX_IndexScan { 

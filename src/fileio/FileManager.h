@@ -1,8 +1,8 @@
 #ifndef FILE_MANAGER
 #define FILE_MANAGER
-#include <string>
+//#include <string>
 #include <stdio.h>
-#include <iostream>
+//#include <iostream>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -21,7 +21,7 @@ private:
 	int _createFile(const char* name) {
 		FILE* f = fopen(name, "a+");
 		if (f == NULL) {
-			cout << "fail" << endl;
+			printf("error: create file %s fail %d", name, errno);
 			return -1;
 		}
 		fclose(f);
@@ -30,12 +30,14 @@ private:
 	int _openFile(const char* name, int fileID) {
 		int f = open(name, O_RDWR);
 		if (f == -1) {
+			printf("error: open file %s fail %d", name, errno);
 			return -1;
 		}
 		fd[fileID] = f;
 		return 0;
 	}
 	FileManager() {
+		MyBitMap::initConst(); // essential
 		fm = new MyBitMap(MAX_FILE_NUM, 1);
 		tm = new MyBitMap(MAX_TYPE_NUM, 1);
 	}
@@ -46,8 +48,8 @@ public:
 	/*
 	 * FilManager构造函数
 	 */
-	static FileManager& instance(){
-		static FileManager __instance;
+	static FileManager* instance(){
+		static FileManager* __instance = new FileManager();
 		return __instance;
 	}
 	/*

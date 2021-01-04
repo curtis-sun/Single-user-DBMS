@@ -1,7 +1,7 @@
 file(REMOVE_RECURSE
   "CMakeFiles/Single-user-DBMS.dir/main.cpp.o"
-  "Single-user-DBMS"
   "Single-user-DBMS.pdb"
+  "Single-user-DBMS"
 )
 
 # Per-language clean rules from dependency scanning.

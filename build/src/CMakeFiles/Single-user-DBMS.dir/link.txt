@@ -1,1 +1,1 @@
-/usr/bin/c++  --std=c++11 -O3 -Wall -Wextra   -rdynamic CMakeFiles/Single-user-DBMS.dir/main.cpp.o  -o Single-user-DBMS  libSingle-user-DBMS_lib.a 
+/usr/bin/c++    -rdynamic CMakeFiles/Single-user-DBMS.dir/main.cpp.o  -o Single-user-DBMS querymanager/libsqlparser.a libSingle-user-DBMS_lib.a 

@@ -1,17 +1,22 @@
 # include "Database.h"
 
+int Database::createDatabase(){
+    return mkdir(__path().c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
+}
+
 int Database::destroyDatabase(){
     for (int i = 0; i < tables.size(); i ++){
         tables[i]->destroyTable();
     }
-    return rmdir(dbname.c_str());
+    return rmdir(__path().c_str());
 }
 
 int Database::openDatabase(){
+    std::vector<std::string> tbNames;
     DIR *p_dir = NULL;
     struct dirent *p_entry = NULL;
     struct stat statbuf;
-    std::string path = dbname;
+    std::string path = __path();
 
     if((p_dir = opendir(path.c_str())) == NULL){
         throw "error: opendir " +  path + " fail";
@@ -23,14 +28,20 @@ int Database::openDatabase(){
     }
 
     while(NULL != (p_entry = readdir(p_dir))) { // 获取下一级目录信息
-        lstat(p_entry->d_name, &statbuf);   // 获取下一级成员属性
+        stat(p_entry->d_name, &statbuf);   // 获取下一级成员属性
         if(S_IFDIR & statbuf.st_mode) {      // 判断下一级成员是否是目录
             std::string subName = p_entry->d_name;  
             if (subName == "." || subName == "..")
                 continue;
-            Table* temp = new Table(dbname, subName);
-            temp->openTable();
-            tables.push_back(temp);
+            tbNames.push_back(subName);
+        }
+    }
+    for (int i = 0; i < path.length(); i ++){
+        if (path[i] == '/'){
+            err = chdir(".."); // 回到上级目录 
+            if (err){
+                throw "error: chdir .. fail";
+            } 
         }
     }
     err = chdir(".."); // 回到上级目录 
@@ -41,11 +52,35 @@ int Database::openDatabase(){
     if (err){
         throw "error: closedir " +  path + " fail";
     } 
+
+    for (int i = 0; i < tbNames.size(); i ++){
+        Table* temp = new Table(dbname, tbNames[i]);
+        temp->openTable();
+        tables.push_back(temp);
+    }
     return err;
 }
 int Database::closeDatabase(){
     for (int i = 0; i < tables.size(); i ++){
         tables[i]->closeTable();
+    }
+}
+
+void Database::showTables(){
+    int maxNameLen = 4;
+    for (int i = 0; i < tables.size(); i ++){
+        int nameLen = tables[i]->name.length();
+        if (nameLen > maxNameLen){
+            maxNameLen = nameLen;
+        }
+    }
+    printf(" %-*s\n-", maxNameLen, "Name");
+    for(int i = 0; i < maxNameLen; i ++){
+        printf("-");
+    }
+    printf("\n");
+    for (int i = 0; i < tables.size(); i ++){
+        printf(" %-*s\n", maxNameLen, tables[i]->name.c_str());
     }
 }
 
@@ -80,9 +115,6 @@ int Database::dropTableByName(const std::string& name) {
     return 0;
 }
 
-Database::Database(char m_dbname[MAX_NAME_LEN]):dbname(m_dbname){
-    int err = mkdir(dbname.c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
-    if (err){
-        throw "error: mkdir " + dbname + " fail";
-    }
-}
+Database::Database(const std::string& m_dbname):dbname(m_dbname){}
+
+Database* Database::database = nullptr;

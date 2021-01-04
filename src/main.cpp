@@ -1,24 +1,23 @@
-# include "systemmanager/Table.h"
-# include <cstring>
-# include <iostream>
+# include <cstdio>
+# include <string>
+# include "utils/MyBitMap.h"
+extern char start_parse(const char *expr_input);
+
+extern int yyparse();
 
 int main(){
-    char name[MAX_NAME_LEN];
-    memcpy(name, "table", 6);
-    Table* table = new Table("db", name);
-    AttrType types[2];
-    types[0] = INTEGER;
-    types[1] = STRING;
-    int colLens[2];
-    colLens[0] = 5;
-    colLens[1] = 10;
-    char names[2][MAX_NAME_LEN];
-    memcpy(names[0], "act", 4);
-    memcpy(names[1], "movie", 6);
-
-    table ->createTable(types, colLens, names, 2);
-    table ->addColumn(INTEGER, 5, "oh");
-    table -> closeTable();
-    table->openTable();
-    return 0;
+    while(true){
+        try{
+            int rc = yyparse();
+            if (!rc){
+                break;
+            }
+        }
+        catch(char const* msg){
+            printf("%s\n", msg);
+        }
+        catch(std::string msg){
+            printf("%s\n", msg.c_str());
+        }
+    }
 }
