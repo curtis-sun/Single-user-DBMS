@@ -12,6 +12,7 @@ int Database::destroyDatabase(){
 }
 
 int Database::openDatabase(){
+    tables.clear();
     std::vector<std::string> tbNames;
     DIR *p_dir = NULL;
     struct dirent *p_entry = NULL;
@@ -90,6 +91,7 @@ Table* Database::getTableByName(const std::string& name) {
             return tables[i];
         }
     }
+    throw "error: no table named " + name + " in database " + dbname;
     return nullptr;
 }
 

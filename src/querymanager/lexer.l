@@ -41,6 +41,7 @@ select|SELECT                       { return SELECT; }
 is|IS                               { return IS; }
 int|INT                             { return IINT; }
 varchar|VARCHAR                     { return VARCHAR; }
+char|CHAR                           { return CCHAR; }
 default|DEFAULT                     { return DEFAULT; }
 constraint|CONSTRAINT               { return CONSTRAINT; }
 change|CHANGE                       { return CHANGE; }

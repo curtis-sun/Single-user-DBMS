@@ -51,10 +51,9 @@ public:
 
 class Field {
 public:
-    virtual void setDefault(Table* table, int colId) {};
     virtual void setPri(Table* table, const std::string& priName) {};
     virtual void addForeign(Table* table, const std::string& ixName) {};
-    virtual void addColumn(std::vector<AttrType>& types, std::vector<int>& colLens, std::vector<std::string>& names) {};
+    virtual void addColumn(std::vector<AttrType>& types, std::vector<int>& colLens, std::vector<std::string>& names, std::vector<bool>& notNulls, std::vector<char*>& defaults) {};
     virtual void addColumn(Table* table) {};
     virtual void changeColumn(Table* table, char oldColName[MAX_NAME_LEN]) {};
     virtual ~Field() = default;
@@ -89,7 +88,8 @@ public:
     }
 
     void addForeign(Table* table, const std::string& ixName) override {
-        table->addForeignKey(key, ixName, refTbName, refKey);
+        Table* refTb = Database::instance()->getTableByName(refTbName);
+        table->addForeignKey(key, ixName, refTbName, refKey, refTb);
     };
 };
 
@@ -98,17 +98,18 @@ class FieldList {
     std::vector<AttrType> types;
     std::vector<int> colLens;
     std::vector<std::string> names;
+    std::vector<bool> notNulls;
+    std::vector<char*> defaults;
 
 public:
     void addField(Field* field){
         list.push_back(field);
-        field->addColumn(types, colLens, names);
+        field->addColumn(types, colLens, names, notNulls, defaults);
     }
 
     void createTable(Table* table){
-        table->createTable(types, colLens, names);
+        table->createTable(types, colLens, names, notNulls, defaults);
         for (int i = 0; i < list.size(); i ++){
-            list[i]->setDefault(table, i);
             list[i]->setPri(table, "pri");
             list[i]->addForeign(table, "foreign_" + to_string(i));
         }
@@ -255,7 +256,7 @@ public:
 class ShowTables : public Node {
 public:
     void run() override {
-        Database::database ->showTables();
+        Database::instance() ->showTables();
     }
 };
 
@@ -269,7 +270,7 @@ public:
     }
 
     void run() override {
-        Table* table = Database::database ->createTable(tbName);
+        Table* table = Database::instance() ->createTable(tbName);
         fieldList->createTable(table);
     }
 
@@ -286,7 +287,7 @@ public:
     }
 
     void run() override {
-        Database::database ->dropTableByName(tbName);
+        Database::instance() ->dropTableByName(tbName);
     }
 };
 
@@ -298,7 +299,7 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->showTable();
+        Database::instance() ->getTableByName(tbName)->showTable();
     }
 };
 
@@ -314,7 +315,7 @@ public:
     }
 
     void run() override {
-        field->setPri(Database::database ->getTableByName(tbName), priName);
+        field->setPri(Database::instance() ->getTableByName(tbName), priName);
     }
 
     ~AddPri() override {
@@ -326,15 +327,19 @@ class AddIndex : public Node {
     std::string tbName;
     std::string ixName;
     IdentList* identList;
+    std::string ixClass = "";
 public:
-    explicit AddIndex(const char* name, const char* m_name, IdentList* colList) {
+    explicit AddIndex(const char* name, const char* m_name, IdentList* colList, const char* c = nullptr) {
         tbName = name;
         ixName = m_name;
         identList = colList;
+        if(c){
+            ixClass = c;
+        }
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->addIndex(identList->list, ixName);
+        Database::instance() ->getTableByName(tbName)->addIndex(identList->list, ixName, ixClass);
     }
 
     ~AddIndex(){
@@ -352,7 +357,7 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->dropIndex(ixName);
+        Database::instance() ->getTableByName(tbName)->dropIndex(ixName);
     }
 };
 
@@ -366,7 +371,7 @@ public:
     }
 
     void run() override {
-        __field->addColumn(Database::database ->getTableByName(tbName));
+        __field->addColumn(Database::instance() ->getTableByName(tbName));
     }
 
     ~AddColumn() override {
@@ -384,7 +389,7 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->dropColumn(__colName);
+        Database::instance() ->getTableByName(tbName)->dropColumn(__colName);
     }
 };
 
@@ -400,7 +405,7 @@ public:
     }
 
     void run() override {
-        __field->changeColumn(Database::database ->getTableByName(tbName), __colName);
+        __field->changeColumn(Database::instance() ->getTableByName(tbName), __colName);
     }
 
     ~ChangeColumn() override {
@@ -418,7 +423,7 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->renameTable(newTbName);
+        Database::instance() ->getTableByName(tbName)->renameTable(newTbName);
     }
 };
 
@@ -430,7 +435,7 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->dropPrimary();
+        Database::instance() ->getTableByName(tbName)->dropPrimary();
     }
 };
 
@@ -450,7 +455,8 @@ public:
     }
 
     void run() override {
-        Database::database ->getTableByName(tbName)->addForeignKey(identList->list, ixName, refTbName, refKeys->list);
+        Table* table = Database::instance()->getTableByName(refTbName);
+        Database::instance() ->getTableByName(tbName)->addForeignKey(identList->list, ixName, refTbName, refKeys->list, table);
     }
 
     ~AddForeign() override {

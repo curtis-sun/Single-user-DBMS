@@ -1,5 +1,77 @@
 # include "QueryManager.h"
 
+static bool checkNotNulDefault(AttrVal& val, Table* table, int colId){
+    if (val.type == NO_TYPE){
+        if (table->header->constraints[colId] & 1){
+            val = recordToAttr(table->rm->defaultRow + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+        }
+        else{
+            if (table->header->constraints[colId] & 4){
+                printf("warning: null value cannot insert into column %s\n", table->header->columnNames[colId]);
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
+static bool checkIndex(const std::vector<AttrVal>& valList, Table* table){
+    for (int i = 0; i < table->ims.size(); i ++){
+        if (table->ims[i]->ixClass == "unique" || table->ims[i]->ixClass == "pri"){
+            Entry entry;
+            for (int k = 0; k < table->ims[i]->keys.size(); k ++){
+                std::string colName = table->ims[i]->keys[k];
+                int colId = table->__colId(colName);
+                entry.vals[k] = valList[colId - 1];
+            }
+            table->ims[i]->indexScan->openScan(entry, table->ims[i]->keys.size(), EQ_OP);
+            RID_t rid;
+            if(!table->ims[i]->indexScan->getNextEntry(rid)){
+                printf("warning: unique index cannot maintain %s\n", table->ims[i]->ixName.c_str());
+                return false;
+            }
+        }
+        else if (table->ims[i]->ixClass == "foreign"){
+            Table* refTb = Database::instance()->getTableByName(table->ims[i]->refTbName);
+            Entry entry;
+            for (int k = 0; k < table->ims[i]->keys.size(); k ++){
+                std::string colName = table->ims[i]->keys[k];
+                int colId = table->__colId(colName);
+                entry.vals[k] = valList[colId - 1];
+            }
+            refTb->priIx->indexScan->openScan(entry, table->ims[i]->keys.size(), GE_OP);
+            RID_t rid;
+            if(refTb->priIx->indexScan->getNextEntry(rid)){
+                printf("warning: foreign key reference to %s cannot maintain %s\n", table->ims[i]->refTbName.c_str(), refTb->priIx->ixName.c_str());
+                return false;
+            }
+            else{
+                char data[refTb->header->pminlen];
+                refTb->rm->getRecord(rid, data);
+                for (int k = 0; k < table->ims[i]->refKeys.size(); k ++){
+                    std::string colName = table->ims[i]->refKeys[k];
+                    int colId = refTb->__colId(colName);
+                    AttrVal refVal = recordToAttr(data + refTb->header->columnOffsets[colId], refTb->header->columnOffsets[colId + 1] - refTb->header->columnOffsets[colId], refTb->header->columnTypes[colId]);
+                    AttrVal cmp = compare(entry.vals[k], refVal, EQ_OP);
+                    if (cmp.type != INTEGER || !cmp.val.i){
+                        printf("warning: foreign key reference to %s cannot maintain %s\n", table->ims[i]->refTbName.c_str(), refTb->priIx->ixName.c_str());
+                        return false;
+                    }
+                }
+            }
+        }
+    }
+    return true;
+}
+
+static bool checkIndex(const char* data, Table* table){
+    std::vector<AttrVal> attrValList;
+    for (int i = 1; i < table->header->columnCnt; i ++){
+        attrValList.push_back(recordToAttr(data + table->header->columnOffsets[i], table->header->columnOffsets[i + 1] - table->header->columnOffsets[i], table->header->columnTypes[i]));
+    }
+    return checkIndex(attrValList, table);
+}
+
 void Insert::run(){
     Table* table = Database::instance()->getTableByName(tbName);
     for (int i = 0; i < lists->list.size(); i ++){
@@ -8,8 +80,14 @@ void Insert::run(){
         char temp[table->header->pminlen];
         for (int j = 0; j < valueList->list.size(); j ++){
             AttrVal val = valueList->list[j]->calc(nullptr, table);
+            if (!checkNotNulDefault(val, table, j + 1)){
+                return;
+            }
             attrValList.push_back(val);
-            restoreAttr(temp + table->header->columnOffsets[j + 1], table->header->columnOffsets[j + 2] - table->header->columnOffsets[j + 1], val);
+            restoreAttr(temp + table->header->columnOffsets[j + 1], table->header->columnOffsets[j + 2] - table->header->columnOffsets[j + 1], attrValList[j]);
+        }
+        if (!checkIndex(attrValList, table)){
+            return;
         }
         RID_t rid;
         table->rm->insertRecord(temp, rid);
@@ -19,7 +97,7 @@ void Insert::run(){
             for (int k = 0; k < table->ims[j]->keys.size(); k ++){
                 std::string colName = table->ims[j]->keys[k];
                 int colId = table->__colId(colName);
-                entry.vals[k] = attrValList[colId];
+                entry.vals[k] = attrValList[colId - 1];
             }
             table->ims[j]->insertEntry(entry);
         }
@@ -37,6 +115,16 @@ void Delete::run(){
         AttrVal val = clause->calc(&rids, table);
         if (val.type == INTEGER && val.val.i){
             table->rm->deleteRecord(rid);
+            for (int j = 0; j < table->ims.size(); j ++){
+                Entry entry;
+                entry.rid = rid;
+                for (int k = 0; k < table->ims[j]->keys.size(); k ++){
+                    std::string colName = table->ims[j]->keys[k];
+                    int colId = table->__colId(colName);
+                    entry.vals[k] = recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+                }
+                table->ims[j]->deleteEntry(entry);
+            }
         }
     }
 }
@@ -47,16 +135,36 @@ void Update::run(){
     table->rm->fileScan->openScan();
     RID_t rid;
     char data[table->header->pminlen];
+    char newData[table->header->pminlen];
     while(!table->rm->fileScan->getNextEntry(data, rid)){
+        memcpy(newData, data, table->header->pminlen);
         rids[tbName] = rid;
         AttrVal val = clause ->calc(&rids, table);
         if (val.type == INTEGER && val.val.i){
             for (int i = 0; i < list->identList.list.size(); i ++){
                 AttrVal val = list->valueList.list[i]->calc(&rids, table);
                 int colId = table->__colId(list->identList.list[i]);
-                restoreAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], val);
+                if (!checkNotNulDefault(val, table, colId)){
+                    return;
+                }
+                restoreAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], val);
             }
-            table->rm->updateRecord(rid, data);
+            if (!checkIndex(newData, table)){
+                return;
+            }
+            table->rm->updateRecord(rid, newData);
+            for (int j = 0; j < table->ims.size(); j ++){
+                Entry oldEntry, newEntry;
+                oldEntry.rid = newEntry.rid = rid;
+                for (int k = 0; k < table->ims[j]->keys.size(); k ++){
+                    std::string colName = table->ims[j]->keys[k];
+                    int colId = table->__colId(colName);
+                    oldEntry.vals[k] = recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+                    newEntry.vals[k] = recordToAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+                }
+                table->ims[j]->deleteEntry(oldEntry);
+                table->ims[j]->insertEntry(newEntry);
+            }
         }
     }
 }
@@ -135,16 +243,16 @@ void Select::run(){
     std::set<Row> rows;
     for (int g = 0; g < clause->exprList.size(); g ++){
         std::set<Row>* oldRows = nullptr, *newRows;
-        std::map<std::string, RID_t> rids;
         for (int i = 0; i < tableList->list.size(); i ++){
             newRows = new set<Row>;
             Table* table = Database::instance()->getTableByName(tableList->list[i]);
-            table->rm->fileScan->openScan();
-            RID_t rid;
-            char data[table->header->pminlen];
-            while(!table->rm->fileScan->getNextEntry(data, rid)){
-                rids[tableList->list[i]] = rid;
-                if (!oldRows){
+            if (!oldRows){
+                std::map<std::string, RID_t> rids;
+                clause->exprList[g]->judgeScan(&rids, table);
+                clause->exprList[g]->openScan(&rids, table);
+                RID_t rid;
+                while(!clause->exprList[g]->getNextEntry(rid, table)){
+                    rids[tableList->list[i]] = rid;
                     AttrVal val = clause->exprList[g]->calc(&rids, nullptr);
                     if (val.type == INTEGER && val.val.i){
                         Row row;
@@ -152,11 +260,20 @@ void Select::run(){
                         newRows->insert(row);
                     }
                 }
-                else{
-                    for (auto it = oldRows->begin(); it != oldRows->end(); it ++){
-                        for (int j = 0; j < i; j ++){
-                            rids[tableList->list[j]] = it->rowList[j];
-                        }
+            }
+            else{
+                for (auto it = oldRows->begin(); it != oldRows->end(); it ++){
+                    std::map<std::string, RID_t> rids;
+                    for (int j = 0; j < i; j ++){
+                        rids[tableList->list[j]] = it->rowList[j];
+                    }
+                    if (it == oldRows->begin()){
+                        clause->exprList[g]->judgeScan(&rids, table);
+                    }
+                    clause->exprList[g]->openScan(&rids, nullptr);
+                    RID_t rid;
+                    while(!clause->exprList[g]->getNextEntry(rid, table)){
+                        rids[tableList->list[i]] = rid;
                         AttrVal val = clause->exprList[g]->calc(&rids, nullptr);
                         if (val.type == INTEGER && val.val.i){
                             Row row(*it);

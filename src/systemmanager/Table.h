@@ -26,7 +26,8 @@ class Table{
     }
     void __setNotNull(uint8_t colId);
     void __setDefault(uint8_t colId, char defaultValue[]);
-    void __addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass = "");
+    void __addIm(IX_Manager* im);
+    void __addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass);
     void __addForeignKey(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys);
     int __loadIndexFromTable(int index);
     int __loadIndex(const std::string& subName = "");
@@ -37,9 +38,9 @@ public:
     void setDefault(uint8_t colId, char defaultValue[]);
     void setPrimary(const std::vector<std::string>& c_names, std::string priName);
     void dropPrimary();
-    int addForeignKey(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys);
+    int addForeignKey(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys, Table* refTb);
 
-    int createTable(const std::vector<AttrType>& types, const std::vector<int>& colLens, const std::vector<std::string>& names);
+    int createTable(const std::vector<AttrType>& types, const std::vector<int>& colLens, const std::vector<std::string>& names, const std::vector<bool>& notNulls, const std::vector<char*>& defaults);
     int destroyTable();
     int openTable();
     int closeTable();
@@ -50,7 +51,7 @@ public:
     int changeColumn(char colName[MAX_NAME_LEN], AttrType type, int colLen, char newColName[MAX_NAME_LEN], bool notNull = false, char defaultValue[] = nullptr);
     int reorganize(TableHeader* newHeader);
 
-    int addIndex(const std::vector<std::string>& c_names, const std::string& ixName);
+    int addIndex(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& ixClass);
     void dropIndex(std::string ixName);
     void dropIndex(int index);
 
@@ -60,8 +61,7 @@ public:
     TableHeader* header;
     RecordManager* rm;
     std::vector<IX_Manager*> ims;
-    IX_Manager* priIx = nullptr;
-    std::vector<IX_Manager*> foreignIxs;
+    IX_Manager* priIx;
     
     Table(const std::string& m_dbname, const std::string& m_name);
     ~Table(){

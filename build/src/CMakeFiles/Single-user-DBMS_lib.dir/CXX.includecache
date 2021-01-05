@@ -51,6 +51,8 @@ fstream
 -
 cstdio
 -
+../utils/compare.cpp
+/mnt/f/Github/Single-user-DBMS/src/utils/compare.cpp
 
 /mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
 ../utils/pagedef.h
@@ -192,6 +194,8 @@ cstring
 sstream
 -
 string
+-
+regex
 -
 
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h

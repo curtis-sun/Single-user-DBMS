@@ -3935,6 +3935,7 @@ private:
 
         if (nu.top.isleafnode())
         {
+            memcpy(reinterpret_cast<char*>(&nu.leaf), reinterpret_cast<char*>(&nu.top), sizeof(nu.top));
             // read remaining data of leaf node
             is.read(reinterpret_cast<char*>(&nu.leaf) + sizeof(nu.top), sizeof(nu.leaf) - sizeof(nu.top));
             if (!is.good()) return NULL;
@@ -3959,6 +3960,7 @@ private:
         }
         else
         {
+            memcpy(reinterpret_cast<char*>(&nu.inner), reinterpret_cast<char*>(&nu.top), sizeof(nu.top));
             // read remaining data of inner node
             is.read(reinterpret_cast<char*>(&nu.inner) + sizeof(nu.top), sizeof(nu.inner) - sizeof(nu.top));
             if (!is.good()) return NULL;

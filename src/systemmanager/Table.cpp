@@ -11,7 +11,7 @@
 # include <cmath>
 # include "../utils/compare.cpp"
 
-static std::string ixNames[] = {"", "pri", "foreign"};
+static std::string ixNames[] = {"", "pri", "foreign", "unique"};
 
 std::uint8_t Table::__colId(const std::string& colName){
     assert(header != nullptr);
@@ -32,21 +32,27 @@ void Table::__setDefault(uint8_t colId, char defaultValue[]){
     memcpy(rm ->defaultRow + header->columnOffsets[colId], defaultValue, header->columnOffsets[colId + 1] - header->columnOffsets[colId]);
 }
 
-void Table::__addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass){
-    if (ixClass == "pri"){
-        if (priIx){
-            throw "error: more than one primary key defined";
+void Table::__addIm(IX_Manager* im){
+    for (int i = 0; i < ims.size(); i ++){
+        if (ims[i] == priIx){
+            continue;
+        }
+        if (ims[i]->ixName == im->ixName){
+            throw "error: already have index named " + im->ixName;
         }
     }
-    ims.push_back(new IX_Manager(__tablePath(ixClass), ixName, c_names));
+    ims.push_back(im);
+}
+
+void Table::__addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass){
+    __addIm(new IX_Manager(__tablePath(ixClass), ixName, ixClass, c_names));
     if (ixClass == "pri"){
         priIx = ims[ims.size() - 1];
     }
 }
 
 void Table:: __addForeignKey(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys){
-    ims.push_back(new IX_Manager(__tablePath("foreign"), ixName, c_names, refTbName, refKeys));
-    foreignIxs.push_back(ims[ims.size() - 1]);
+    __addIm(new IX_Manager(__tablePath("foreign"), ixName, c_names, refTbName, refKeys));
 }
 
 int Table::__loadIndexFromTable(int index){
@@ -94,11 +100,11 @@ void Table::__loadFiles(const std::string& subName){
             std::string ixClass = p_entry->d_name;  
             if (ixClass == "." || ixClass == "..")
                 continue;
-            if (ixClass == "pri"){
-                __loadFiles("pri");
-            }
-            else if (ixClass == "foreign"){
-                __loadFiles("foreign");
+            for (int i = 1; i < 4; i ++){
+                if (ixClass == ixNames[i]){
+                    __loadFiles(ixClass);
+                    break;
+                }
             }
         } else {
             files.push_back(__tablePath(subName) + "/" + p_entry->d_name);
@@ -124,9 +130,10 @@ void Table::__loadFiles(const std::string& subName){
 
 int Table::__loadIndex(const std::string& subName){
     // initialize index
-    ims.clear();
-    priIx = nullptr;
-    foreignIxs.clear();
+    if (subName.length() == 0){
+        ims.clear();
+        priIx = nullptr;
+    }
 
     DIR *p_dir = NULL;
     struct dirent *p_entry = NULL;
@@ -151,11 +158,11 @@ int Table::__loadIndex(const std::string& subName){
             std::string ixClass = p_entry->d_name;  
             if (ixClass == "." || ixClass == "..")
                 continue;
-            if (ixClass == "pri"){
-                __loadIndex("pri");
-            }
-            else if (ixClass == "foreign"){
-                __loadIndex("foreign");
+            for (int i = 1; i < 4; i ++){
+                if (ixClass == ixNames[i]){
+                    __loadIndex(ixClass);
+                    break;
+                }
             }
         } else {
             std::vector<std::string> names;
@@ -182,6 +189,7 @@ int Table::__loadIndex(const std::string& subName){
                 }
                 refKeys.push_back(name.substr(oldPosition + 1));
                 __addForeignKey(names, ixName, refTbName, refKeys);
+                ims[ims.size() - 1]->openIndex();
             }
             else{
                 if (name == "tb" || name == "tb_temp"){
@@ -197,6 +205,7 @@ int Table::__loadIndex(const std::string& subName){
                 }
                 names.push_back(name.substr(oldPosition + 1));
                 __addIndex(names, ixName, subName);
+                ims[ims.size() - 1]->openIndex();
             }
         }
     }
@@ -228,24 +237,38 @@ void Table::setDefault(uint8_t colId, char defaultValue[]){
 }
 
 void Table::setPrimary(const std::vector<std::string>& c_names, std::string priName){
+    if (priIx){
+        throw "error: already have primary key";
+    }
+    for (int i = 0; i < c_names.size(); i ++){
+        int colId = __colId(c_names[i]);
+        if (!(header->constraints[colId] & 4)){
+            throw "error: primary key column " + to_string(colId) + " must not null";
+        }
+    }
     __addIndex(c_names, priName, "pri");
     __loadIndexFromTable(ims.size() - 1);
 }
 
 void Table::dropPrimary(){
-    if (!priIx){
-        throw "error: primary key is undefined";
-    }
-    dropIndex(priIx->ixName);
+    dropIndex("pri");
 }
 
-int Table::addForeignKey(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys){
+int Table::addForeignKey(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys, Table* refTb){
+    if (refKeys.size() > refTb->priIx->keys.size()){
+        throw "error: foreign key cannot refer to primary key";
+    }
+    for (int i = 0; i < refKeys.size(); i ++){
+        if (refKeys[i] != refTb->priIx->keys[i]){
+            throw "error: foreign key column " + refKeys[i] + " cannot be found in primary key";
+        }
+    }
     __addForeignKey(c_names, ixName, refTbName, refKeys);
     return __loadIndexFromTable(ims.size() - 1);
 }
 
-int Table::createTable(const std::vector<AttrType>& types, const std::vector<int>& colLens, const std::vector<std::string>& names){
-    for (int i = 0; i < 3; i ++){
+int Table::createTable(const std::vector<AttrType>& types, const std::vector<int>& colLens, const std::vector<std::string>& names, const std::vector<bool>& notNulls, const std::vector<char*>& defaults){
+    for (int i = 0; i < 4; i ++){
         int err = mkdir(__tablePath(ixNames[i]).c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
         if (err){
             throw "error: create table dir fail " + to_string(errno);
@@ -262,6 +285,12 @@ int Table::createTable(const std::vector<AttrType>& types, const std::vector<int
         header->columnOffsets[i + 2] = header->columnOffsets[i + 1] + colLens[i];
         memcpy(header->columnNames[i + 1], names[i].c_str(), MAX_NAME_LEN);
         header->columnTypes[i + 1] = types[i];
+        if (notNulls[i]){
+            __setNotNull(i + 1);
+        }
+        if (defaults[i]){
+            __setDefault(i + 1, defaults[i]);
+        }
     }
     header->pminlen = header->columnOffsets[header->columnCnt];
     int err = rm ->createFile();
@@ -275,8 +304,9 @@ int Table::destroyTable(){
     for (int i = 0; i < ims.size(); i ++){
         ims[i]->destroyIndex();
     }
-    rmdir(__tablePath("pri").c_str());
-    rmdir(__tablePath("foreign").c_str());
+    for (int i = 1; i < 4; i ++){
+        rmdir(__tablePath(ixNames[i]).c_str());
+    }
     int err = rm ->destroyFile();
     if (err){
         throw "error: drop table " + name + " fail";
@@ -309,24 +339,26 @@ int Table::closeTable(){
 
 void Table::showTable(){
     int maxNameLen = 6, maxDefaultLen = 7;
-    for (int i = 0; i < header->columnCnt; i ++){
+    for (int i = 1; i < header->columnCnt; i ++){
         int nameLen = strlen(header->columnNames[i]);
         if (nameLen > maxNameLen){
             maxNameLen = nameLen;
         }
-        int valLen = header->columnOffsets[i + 1] - header->columnOffsets[i] - 1;
-        if (valLen > maxDefaultLen){
-            maxDefaultLen = valLen;
+        if (header->constraints[i] & 1){
+            int valLen = header->columnOffsets[i + 1] - header->columnOffsets[i] - 1;
+            if (valLen > maxDefaultLen){
+                maxDefaultLen = valLen;
+            }
         }
     }
     printf(" Table %s.%s\n", dbname.c_str(), name.c_str());
     printf(" %-*s ", maxNameLen, "Column");
-    printf("| Type        | Nullable |");
+    printf("| Type         | Nullable |");
     printf(" %-*s\n-", maxDefaultLen, "Default");
     for(int i = 0; i < maxNameLen; i ++){
         printf("-");
     }
-    printf("-+-------------+----------+-");
+    printf("-+--------------+----------+-");
     for(int i = 0; i < maxDefaultLen; i ++){
         printf("-");
     }
@@ -361,7 +393,7 @@ void Table::showTable(){
                 throw "error: unknown value type";
             }
         }
-        printf("| %-11s |", type.c_str());
+        printf("| %-12s |", type.c_str());
         if (header->constraints[i] & 4){
             printf(" not null |");
         }
@@ -378,8 +410,8 @@ void Table::showTable(){
     }
 }
 
-int Table::addIndex(const std::vector<std::string>& c_names, const std::string& ixName){
-    __addIndex(c_names, ixName);
+int Table::addIndex(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& ixClass){
+    __addIndex(c_names, ixName, ixClass);
     return __loadIndexFromTable(ims.size() - 1);
 }
 
@@ -398,14 +430,6 @@ void Table::dropIndex(int i){
     ims.erase(ims.begin() + i);
     if (im == priIx){
         priIx = nullptr;
-    }
-    else{
-        for (int j = 0; j < foreignIxs.size(); j ++){
-            if (foreignIxs[j] == im){
-                foreignIxs.erase(foreignIxs.begin() + j);
-                break;
-            }
-        }
     }
     im ->destroyIndex();
 }
@@ -586,7 +610,7 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
         }
         else{
             // 检查现有数据是否有空数据？
-            if (notNull){
+            if (!(header->constraints[colId] & 4) && notNull){
                 if (defaultValue){
                     memcpy(newData + newHeader->columnOffsets[colId], defaultValue, newColLen);
                 }
@@ -650,7 +674,7 @@ void Table::renameTable(const std::string& newName){
     std::string oldPath = __tablePath();
     name = newName;
     std::string newPath = __tablePath();
-    for (int i = 0; i < 3; i ++){
+    for (int i = 0; i < 4; i ++){
         int err = mkdir(__tablePath(ixNames[i]).c_str(), S_IRUSR | S_IWUSR | S_IXUSR | S_IRWXG | S_IRWXO);
         if (err){
             throw "error: create table dir fail " + to_string(errno);
@@ -664,8 +688,9 @@ void Table::renameTable(const std::string& newName){
             throw "error: rename table fail " + to_string(errno);
         }
     }
-    rmdir((oldPath + "/pri").c_str());
-    rmdir((oldPath + "/foreign").c_str());
+    for (int i = 1; i < 4; i ++){
+        rmdir((oldPath + "/" + ixNames[i]).c_str());
+    }
     int err = rmdir(oldPath.c_str());
     if (err){
         throw "error: rmdir " + oldPath + " fail " + to_string(errno);

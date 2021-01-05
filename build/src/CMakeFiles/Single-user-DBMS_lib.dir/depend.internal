@@ -6,6 +6,7 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o
  /mnt/f/Github/Single-user-DBMS/src/index/IX_Manager.h
  /mnt/f/Github/Single-user-DBMS/src/index/btree.h
  /mnt/f/Github/Single-user-DBMS/src/index/btree_set.h
+ /mnt/f/Github/Single-user-DBMS/src/utils/compare.cpp
  /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/querymanager/QueryManager.cpp.o
  /mnt/f/Github/Single-user-DBMS/src/bufmanager/BufPageManager.h

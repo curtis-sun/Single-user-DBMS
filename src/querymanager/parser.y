@@ -21,6 +21,7 @@ int yyerror(const char *);
     Expression* expression;
     WhereClause* whereClause;
     LogicalAnd* logicalAnd;
+    Relational* relational;
     SetList* setList;
     IdentList* identList;
 }
@@ -33,7 +34,7 @@ int yyerror(const char *);
 %token FROM WHERE VALUES SET INTO ADD CHANGE KEY NOT ON TO RENAME
 
 /* COLUMN DESCPRITION */
-%token FFLOAT VARCHAR DDATE PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT IINT
+%token FFLOAT CCHAR VARCHAR DDATE PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT IINT
 
 /* number */
 %token <val_i> INT_FORMAT
@@ -54,9 +55,10 @@ int yyerror(const char *);
 %type <__type> type
 %type <__valueLists> valueLists
 %type <__valueList> valueList selector
-%type <expression> value relational expression col
+%type <expression> expression multiplicative primary value col
 %type <whereClause> whereClause
 %type <logicalAnd> logicalAnd
+%type <relational> relational
 %type <setList> setClause
 %type <identList> tableList columnList
 
@@ -293,6 +295,10 @@ type  :
         {
             $$ = new Type(AttrType::STRING, $3);
         }
+    | CCHAR '(' INT_FORMAT ')'
+        {
+            $$ = new Type(AttrType::STRING, $3);
+        }
     | DDATE
         {
             $$ = new Type(AttrType::DATE);
@@ -366,39 +372,73 @@ logicalAnd:
 relational:
     col EQ expression
         {
-            $$ = new Binary($1, CompOp::EQ_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::EQ_OP, $3), nullptr);
         }
     | col GT expression
         {
-            $$ = new Binary($1, CompOp::GT_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::GT_OP, $3), nullptr);
         }
     | col LT expression
         {
-            $$ = new Binary($1, CompOp::LT_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::LT_OP, $3), nullptr);
         }
     | col GE expression
         {
-            $$ = new Binary($1, CompOp::GE_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::GE_OP, $3), nullptr);
         }
     | col LE expression
         {
-            $$ = new Binary($1, CompOp::LE_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::LE_OP, $3), nullptr);
         }
     | col NE expression
         {
-            $$ = new Binary($1, CompOp::NE_OP, $3);
+            $$ = new Relational(new Binary($1, CalcOp::NE_OP, $3), nullptr);
         }
     | col IS NNULL
         {
-            $$ = new Unary($1, CompOp::IS_NULL);
+            $$ = new Relational(nullptr, new Unary($1, CalcOp::IS_NULL));
         }
     | col IS NOT NNULL
         {
-            $$ = new Unary($1, CompOp::NOT_NULL);
+            $$ = new Relational(nullptr, new Unary($1, CalcOp::NOT_NULL));
+        }
+    | col LIKE expression
+        {
+            $$ = new Relational(new Binary($1, CalcOp::LIKE_OP, $3), nullptr);
         }
     ;
 
-expression: 
+expression:
+    multiplicative
+        {
+            $$ = $1;
+        }
+    | expression '+' multiplicative
+        {
+            $$ = new Binary($1, CalcOp::ADD_OP, $3);
+        }
+    | expression '-' multiplicative
+        {
+            $$ = new Binary($1, CalcOp::SUB_OP, $3);
+        }
+    ;
+
+multiplicative:
+    primary
+        {
+            $$ = $1;
+        }
+    | multiplicative '*' primary
+        {
+            $$ = new Binary($1, CalcOp::MUL_OP, $3);
+        }
+    | multiplicative '/' primary
+        {
+            $$ = new Binary($1, CalcOp::DIV_OP, $3);
+        }
+    ; 
+
+primary:
     col
         {
             $$ = $1;
@@ -406,6 +446,10 @@ expression:
     | value
         {
             $$ = $1;
+        }
+    | '(' expression ')'
+        {
+            $$ = $2;
         }
     ;
 
@@ -421,12 +465,12 @@ col:
     ;
 
 setClause:
-    IDENTIFIER EQ value
+    IDENTIFIER EQ expression
         {
             $$ = new SetList();
             $$->addSetClause($1, $3);
         }
-    | setClause ',' IDENTIFIER EQ value
+    | setClause ',' IDENTIFIER EQ expression
         {
             $$ = $1;
             $$->addSetClause($3, $5);
@@ -438,12 +482,12 @@ selector:
         {
             $$ = nullptr;
         }
-    | col
+    | expression
         {
             $$ = new ValueList();
             $$->addValue($1);
         }
-    | selector ',' col
+    | selector ',' expression
         {
             $$ = $1;
             $$->addValue($3);

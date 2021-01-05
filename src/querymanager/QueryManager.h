@@ -37,6 +37,7 @@ public:
         val.type = type;
         switch(type){
             case STRING:{
+                val.s[0] = 0; // for empty string to display
                 memcpy(val.s, s, strlen(s));
                 break;
             }
@@ -85,9 +86,10 @@ public:
 
 class Binary : public Expression{
 public:
+    CalcOp op;
     Expression* left, *right;
-    CompOp op;
-    Binary(Expression* l, CompOp o, Expression* r) : left(l), op(o), right(r) {
+    Binary(Expression* l, CalcOp o, Expression* r) : left(l), right(r) {
+        op = o;
         for (auto i = l->tbs.begin(); i != l->tbs.end(); i ++){
             tbs.insert(*i);
         }
@@ -98,40 +100,101 @@ public:
     AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
         AttrVal lVal = left ->calc(rids, t);
         AttrVal rVal = right ->calc(rids, t);
-        bool result = compare(lVal, rVal, op);
-        AttrVal ans;
-        ans.type = INTEGER;
-        ans.val.i = result;
-        return ans;
+        switch(op){
+            case ADD_OP:
+            case SUB_OP:
+            case MUL_OP:
+            case DIV_OP:{
+                return calculate(lVal, rVal, op);
+            }
+            case LIKE_OP:{
+                return like(lVal, rVal);
+            }
+            case EQ_OP: 
+            case LT_OP:
+            case GT_OP:
+            case LE_OP: 
+            case GE_OP: 
+            case NE_OP:{
+                return compare(lVal, rVal, op);
+            }
+            default:{
+                throw "error: unknown binary operation " + std::to_string(op);
+            }
+        }
     }
 };
 
 class Unary : public Expression{
 public:
+    CalcOp op;
     Expression* child;
-    CompOp op;
-    Unary(Expression* c, CompOp o) : child(c), op(o) {
+    Unary(Expression* c, CalcOp o) : child(c) {
+        op = o;
         for (auto i = child->tbs.begin(); i != child->tbs.end(); i ++){
             tbs.insert(*i);
         }
     }
     AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
         AttrVal cVal = child ->calc(rids, t);
-        bool result = judge(cVal, op);
-        AttrVal ans;
-        ans.type = INTEGER;
-        ans.val.i = result;
-        return ans;
+        return judge(cVal, op);
     }
 };
 
-class LogicalAnd: public Expression{
+class Relational : public Expression{
 public:
-    vector<Expression*> exprList;
-    LogicalAnd(Expression* expr){
+    Col* col;
+    CalcOp op;
+    Binary* binary;
+    Unary* unary;
+    Relational(Binary* b, Unary* u){
+        binary = b;
+        unary = u;
+        if (b){
+            col = (Col*)b->left;
+            op = b->op;
+            for (auto i = b->tbs.begin(); i != b->tbs.end(); i ++){
+                tbs.insert(*i);
+            }
+        }
+        else{
+            op = u->op;
+            col = (Col*)u->child;
+            for (auto i = u->tbs.begin(); i != u->tbs.end(); i ++){
+                tbs.insert(*i);
+            }
+        }
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
+        if (binary){
+            return binary->calc(rids, t);
+        }
+        return unary->calc(rids, t);
+    }
+    bool isChildConstant(std::map<std::string, RID_t>* rids){
+        if (binary){
+            return binary->right->contain(rids);
+        }
+        return unary->child->contain(rids);
+    }
+};
+
+struct RelTuple{
+    std::string colName;
+    CalcOp op;
+    Expression* expr;
+};
+
+class LogicalAnd: public Expression{
+    RM_FileScan* fileScan;
+    IX_IndexScan* indexScan;
+    std::vector<RelTuple>* maxExprList;
+public:
+    vector<Relational*> exprList;
+    LogicalAnd(Relational* expr){
         exprList.push_back(expr);
     }
-    void addRelational(Expression* expr){
+    void addRelational(Relational* expr){
         exprList.push_back(expr);
     }
     AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) override {
@@ -143,13 +206,109 @@ public:
                 continue;
             }
             AttrVal rVal = exprList[i] ->calc(rids, table);
-            bool result = logic(lVal, rVal, CalcOp::AND_OP);
-            lVal.val.i = result;
-            if (!result){
+            lVal = logic(lVal, rVal, CalcOp::AND_OP);
+            if (!lVal.val.i){
                 break;
             }
         }
         return lVal;
+    }
+    void judgeScan(std::map<std::string, RID_t>* rids, Table* table){
+        std::vector<RelTuple> cmpList;
+        for (int i = 0; i < exprList.size(); i ++){
+            if (exprList[i]->isChildConstant(rids) && (!exprList[i]->col->table || exprList[i]->col->table->name == table->name)){
+                switch(exprList[i]->op){
+                    case IS_NULL:
+                    case NOT_NULL:{
+                        RelTuple temp;
+                        temp.colName = exprList[i]->col->colName;
+                        if (exprList[i]->op == IS_NULL){
+                            temp.op = EQ_OP;
+                        }
+                        else{
+                            temp.op = NE_OP;
+                        }
+                        temp.expr = new Primary(nullptr, NO_TYPE);
+                        cmpList.push_back(temp);
+                        break;
+                    }
+                    default:{
+                        RelTuple temp;
+                        temp.colName = exprList[i]->col->colName;
+                        temp.op = exprList[i]->op;
+                        temp.expr = exprList[i]->binary->right;
+                        cmpList.push_back(temp);
+                    }
+                }
+            }
+        }
+        if (cmpList.empty()){
+            fileScan = table->rm->fileScan;
+            indexScan = nullptr;
+            return;
+        }
+        maxExprList = nullptr;
+        int maxId = -1;
+        for (int i = 0; i < table->ims.size(); i ++){
+            std::vector<RelTuple>* tempList = new std::vector<RelTuple>();
+            for (int j = 0; j < table->ims[i]->keys.size(); j ++){
+                std::string key = table->ims[i]->keys[j];
+                int eqId = -1, cmpId = -1;
+                for (int k = 0; k < cmpList.size(); k ++){
+                    if (cmpList[k].colName == key){
+                        if (cmpList[k].op == EQ_OP){
+                            eqId = k;
+                            break;
+                        }
+                        else{
+                            if (cmpId < 0){
+                                cmpId = k;
+                            }
+                        }
+                    }
+                }
+                if (eqId >= 0){
+                    tempList->push_back(cmpList[eqId]);
+                }
+                else{
+                    if (cmpId >= 0){
+                        tempList->push_back(cmpList[cmpId]);
+                    }
+                    break;
+                }
+            }
+            if (!maxExprList || tempList->size() > maxExprList->size()){
+                delete maxExprList;
+                maxExprList = tempList;
+                maxId = i;
+            }
+        }
+        if (!maxExprList || maxExprList->empty()){
+            fileScan = table->rm->fileScan;
+            indexScan = nullptr;
+            return;
+        }
+        fileScan = nullptr;
+        indexScan = table->ims[maxId]->indexScan;
+        printf("info: index %s has been used\n", table->ims[maxId]->ixName.c_str());
+    }
+    void openScan(std::map<std::string, RID_t>* rids, Table* table){
+        if (!indexScan){
+            fileScan->openScan();
+            return;
+        }
+        Entry entry;
+        for (int i = 0; i < maxExprList->size(); i ++){
+            entry.vals[i] = maxExprList->at(i).expr->calc(rids, table);
+        }
+        indexScan->openScan(entry, maxExprList->size(), maxExprList->at(maxExprList->size() - 1).op);
+    }
+    int getNextEntry(RID_t& rid, Table* table){
+        if (!indexScan){
+            char temp[table->header->pminlen];
+            return fileScan->getNextEntry(temp, rid);
+        }
+        return indexScan->getNextEntry(rid);
     }
 };
 
@@ -171,9 +330,8 @@ public:
                 continue;
             }
             AttrVal rVal = exprList[i] ->calc(rids, table);
-            bool result = logic(lVal, rVal, CalcOp::OR_OP);
-            lVal.val.i = result;
-            if (result){
+            lVal = logic(lVal, rVal, CalcOp::OR_OP);
+            if (lVal.val.i){
                 break;
             }
         }
@@ -211,28 +369,27 @@ class ColField : public Field {
     char __colName[MAX_NAME_LEN];
     Type* __type;
     bool __notNull;
-    char __defaultVal[MAX_ATTR_LEN];
+    char* __defaultVal;
 
 public:
     ColField(const char* colName, Type* type, bool notNull = false, Expression* defaultVal = nullptr) :
         __type(type), __notNull(notNull) {
         if (defaultVal){
-            __defaultVal[0] = 1;
-            restoreAttr(__defaultVal + 1, MAX_ATTR_LEN, defaultVal->calc(nullptr, nullptr));
+            __defaultVal = new char[MAX_ATTR_LEN];
+            restoreAttr(__defaultVal, MAX_ATTR_LEN, defaultVal->calc(nullptr, nullptr));
+        }
+        else{
+            __defaultVal = nullptr;
         }
         memcpy(__colName, colName, MAX_NAME_LEN);
     }
 
-    void addColumn(std::vector<AttrType>& types, std::vector<int>& colLens, std::vector<std::string>& names) override {
+    void addColumn(std::vector<AttrType>& types, std::vector<int>& colLens, std::vector<std::string>& names, std::vector<bool>& notNulls, std::vector<char*>& defaults) override {
         types.push_back(__type->type);
         colLens.push_back(__type->valLen);
         names.push_back(__colName);
-    }
-
-    void setDefault(Table* table, int colId) override {
-        if (__defaultVal){
-            table ->setDefault(colId, __defaultVal);
-        }
+        notNulls.push_back(__notNull);
+        defaults.push_back(__defaultVal);
     }
 
     void addColumn(Table* table) override {

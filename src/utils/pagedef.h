@@ -63,15 +63,11 @@ typedef uint64_t RID_t;
 #define MAX_IX_NUM 16
 
 enum AttrType {
-    INTEGER, STRING, FLOAT, DATE, NO_TYPE
-};
-
-enum CompOp {
-    EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, IS_NULL, NOT_NULL
+    INTEGER, STRING, FLOAT, DATE, NO_TYPE, POS_TYPE
 };
 
 enum CalcOp {
-    OR_OP, AND_OP
+    ADD_OP, SUB_OP, MUL_OP, DIV_OP, LIKE_OP, OR_OP, AND_OP, EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, IS_NULL, NOT_NULL
 };
 
 struct AttrVal{

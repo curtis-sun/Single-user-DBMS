@@ -5,6 +5,7 @@ src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/index/IX_
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/index/IX_Manager.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/index/btree.h
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/index/btree_set.h
+src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/utils/compare.cpp
 src/CMakeFiles/Single-user-DBMS_lib.dir/index/IX_Manager.cpp.o: ../src/utils/pagedef.h
 
 src/CMakeFiles/Single-user-DBMS_lib.dir/querymanager/QueryManager.cpp.o: ../src/bufmanager/BufPageManager.h

@@ -5,6 +5,7 @@
 #include <cstring>
 #include <sstream>
 #include <string>
+#include <regex>
 
 static int dateRestore(const std::string& dateFormat){
     int yearMonth = dateFormat.find("-");
@@ -43,6 +44,9 @@ static std::string attrToString(const AttrVal& val){
 			sstream.fill('0');
 			sstream << date;
 			return sstream.str();
+		}
+		case STRING:{
+			return val.s;
 		}
 		default:{
 			throw "error: attribute cannot convert to string because of unknown type";
@@ -151,7 +155,7 @@ static bool attrConvert(AttrVal& val, AttrType newType){
 }
 
 template<typename T> 
-static bool compare(const T& a, const T& b, CompOp compOp){
+static bool compare(const T& a, const T& b, CalcOp compOp){
 	switch(compOp){
 		case EQ_OP:{
 			return a == b;
@@ -172,68 +176,199 @@ static bool compare(const T& a, const T& b, CompOp compOp){
 			return a != b;
 		}
 		default:{
-			return false;
+			throw "error: Ts cannot be operated";
 		}
 	}
 }
 
-static bool compare(AttrVal a, AttrVal b, CompOp compOp){
+template<typename T> 
+static T calculate(const T& a, const T& b, CalcOp op){
+	switch(op){
+		case ADD_OP:{
+			return a + b;
+		}
+		case SUB_OP:{
+			return a - b;
+		}
+		case MUL_OP:{
+			return a * b;
+		}
+		case DIV_OP:{
+			return a / b;
+		}
+		default:{
+			throw "error: Ts cannot be calculated";
+		}
+	}
+}
+
+static bool strlike(const char *s1, const char *s2)
+{
+	// See: https://docs.microsoft.com/en-us/sql/t-sql/language-elements/like-transact-sql?view=sql-server-2017
+	enum {
+		STATUS_A,
+		STATUS_SLASH,
+	} status = STATUS_A;
+	std::string pattern;
+
+	for(int i = 0; s2[i]; ++i)
+	{
+		switch(status)
+		{
+			case STATUS_A:
+				switch(s2[i])
+				{
+					case '\\':
+						status = STATUS_SLASH;
+						break;
+					case '%':
+						pattern += ".*";
+						break;
+					case '_':
+						pattern.push_back('.');
+						break;
+					default:
+						pattern.push_back(s2[i]);
+						break;
+				}
+				break;
+			case STATUS_SLASH:
+				switch(s2[i])
+				{
+					case '%':
+					case '_':
+						pattern.push_back(s2[i]);
+						break;
+					default:
+						pattern.push_back('\\');
+						pattern.push_back(s2[i]);
+						break;
+				}
+				status = STATUS_A;
+				break;
+		}
+	}
+
+	return std::regex_match(s1, std::regex(pattern));
+}
+
+static AttrVal compare(AttrVal a, AttrVal b, CalcOp compOp){
+	AttrVal val;
+	val.type = INTEGER;
 	if (a.type == NO_TYPE || b.type == NO_TYPE){
-		return false;
+		return AttrVal();
 	}
 	if (!attrConvert(a, b.type) && !attrConvert(b, a.type)){
 		throw "error: attributes cannot be operated";
-		return false;
+		val.val.i = 0;
+		return val;
 	}
 	switch(a.type){
 		case DATE:
 		case INTEGER:{
-			return compare<int>(a.val.i, b.val.i, compOp);
+			val.val.i = compare<int>(a.val.i, b.val.i, compOp);
+			return val;
 		}
 		case FLOAT:{
-			return compare<float>(a.val.f, b.val.f, compOp);
+			val.val.i = compare<float>(a.val.f, b.val.f, compOp);
+			return val;
 		}
 		case STRING:{
 			switch(compOp){
 				case EQ_OP:{
-					return strcmp(a.s, b.s) == 0;
+					val.val.i = strcmp(a.s, b.s) == 0;
+					return val;
 				}
 				case LT_OP:{
-					return strcmp(a.s, b.s) < 0;
+					val.val.i = strcmp(a.s, b.s) < 0;
+					return val;
 				}
 				case GT_OP:{
-					return strcmp(a.s, b.s) > 0;
+					val.val.i = strcmp(a.s, b.s) > 0;
+					return val;
 				}
 				case LE_OP:{
-					return strcmp(a.s, b.s) <= 0;
+					val.val.i = strcmp(a.s, b.s) <= 0;
+					return val;
 				}
 				case GE_OP:{
-					return strcmp(a.s, b.s) >= 0;
+					val.val.i = strcmp(a.s, b.s) >= 0;
+					return val;
 				}
 				case NE_OP:{
-					return strcmp(a.s, b.s) != 0;
+					val.val.i = strcmp(a.s, b.s) != 0;
+					return val;
 				}
 				default:{
-					return false;
+					throw "error: unknown compare operation " + std::to_string(compOp);
 				}
 			}
 		}
 		default:{
-			return false;
+			throw "error: attributes " + attrToString(a) + ", " + attrToString(b) + " cannot be compared";
 		}
 	}
 }
 
-static bool logic(const AttrVal& a, const AttrVal& b, CalcOp op){
+static AttrVal calculate(AttrVal a, AttrVal b, CalcOp op){
 	if (a.type == NO_TYPE || b.type == NO_TYPE){
-		return false;
+		return AttrVal();
+	}
+	if (a.type != INTEGER && a.type != FLOAT || b.type != INTEGER && b.type != FLOAT){
+		throw "error: attributes " + attrToString(a) + ", " + attrToString(b) + " cannot be calculated";
+	}
+	if (!attrConvert(a, b.type) && !attrConvert(b, a.type)){
+		throw "error: attributes cannot be operated";
+	}
+	switch(a.type){
+		case INTEGER:{
+			AttrVal val;
+			val.type = INTEGER;
+			val.val.i = calculate<int>(a.val.i, b.val.i, op);
+			return val;
+		}
+		case FLOAT:{
+			AttrVal val;
+			val.type = FLOAT;
+			val.val.f = calculate<float>(a.val.f, b.val.f, op);
+			return val;
+		}
+		default:{
+			throw "error: attributes " + attrToString(a) + ", " + attrToString(b) + " cannot be calculated";
+		}
+	}
+}
+
+static AttrVal like(const AttrVal& a, const AttrVal& b){
+	if (a.type == NO_TYPE || b.type == NO_TYPE){
+		return AttrVal();
+	}
+	if (a.type != STRING || b.type != STRING){
+		throw "error: attributes " + attrToString(a) + ", " + attrToString(b) + " cannot be liked";
+	}
+	AttrVal val;
+	val.type = INTEGER;
+	val.val.i = strlike(a.s, b.s);
+	return val;
+}
+
+static AttrVal logic(const AttrVal& a, const AttrVal& b, CalcOp op){
+	AttrVal val;
+	val.type = INTEGER;
+	if (a.type == NO_TYPE || b.type == NO_TYPE){
+		return AttrVal();
+	}
+	if (a.type != INTEGER || b.type != INTEGER){
+		throw "error: attributes " + attrToString(a) + ", " + attrToString(b) + " cannot be logically operated";
 	}
 	switch(op){
 		case AND_OP:{
-			return a.val.i && b.val.i;
+			val.val.i = a.val.i && b.val.i;
+			return val;
 		}
 		case OR_OP:{
-			return a.val.i || b.val.i;
+			val.val.i = a.val.i || b.val.i;
+			return val;
 		}
 		default:{
 			throw "error: unknown binary operation " + std::to_string(op);
@@ -241,13 +376,17 @@ static bool logic(const AttrVal& a, const AttrVal& b, CalcOp op){
 	}
 }
 
-static bool judge(const AttrVal& a, CompOp compOp){
+static AttrVal judge(const AttrVal& a, CalcOp compOp){
+	AttrVal val;
+	val.type = INTEGER;
 	switch(compOp){
 		case IS_NULL:{
-			return a.type == NO_TYPE;
+			val.val.i = a.type == NO_TYPE;
+			return val;
 		}
 		case NOT_NULL:{
-			return a.type != NO_TYPE;
+			val.val.i = a.type != NO_TYPE;
+			return val;
 		}
 		default:{
 			throw "error: unknown unary operation " + std::to_string(compOp);
