@@ -58,6 +58,7 @@ references|REFERENCES               { return REFERENCES; }
 on|ON                               { return ON; }
 to|TO                               { return TO; }
 
+unique|UNIQUE                       { return UNIQUE; }
 check|CHECK                         { return CHECK; }
 or|OR                               { return OR; }
 "="                                 { return EQ; }

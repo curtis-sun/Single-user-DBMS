@@ -18,6 +18,7 @@ static bool checkNotNulDefault(AttrVal& val, Table* table, int colId){
 static bool checkIndex(const std::vector<AttrVal>& valList, Table* table){
     for (int i = 0; i < table->ims.size(); i ++){
         if (table->ims[i]->ixClass == "unique" || table->ims[i]->ixClass == "pri"){
+            printf("!\n");
             Entry entry;
             for (int k = 0; k < table->ims[i]->keys.size(); k ++){
                 std::string colName = table->ims[i]->keys[k];
@@ -83,7 +84,7 @@ void Insert::run(){
             if (!checkNotNulDefault(val, table, j + 1)){
                 return;
             }
-            if (!attrConvert(val, table->header->columnTypes[j + 1])){
+            if (val.type != NO_TYPE && !attrConvert(val, table->header->columnTypes[j + 1])){
                 printf("warning: insert cannot convert %s to %d\n", attrToString(val).c_str(), table->header->columnTypes[j + 1]);
                 return;
             }
@@ -151,7 +152,7 @@ void Update::run(){
                 if (!checkNotNulDefault(val, table, colId)){
                     return;
                 }
-                if (!attrConvert(val, table->header->columnTypes[colId])){
+                if (val.type != NO_TYPE && !attrConvert(val, table->header->columnTypes[colId])){
                     printf("warning: update cannot convert %s to %d\n", attrToString(val).c_str(), table->header->columnTypes[colId]);
                     return;
                 }

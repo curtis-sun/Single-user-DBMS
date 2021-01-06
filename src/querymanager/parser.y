@@ -31,7 +31,7 @@ int yyerror(const char *);
 %token SELECT DELETE UPDATE INSERT
 %token CREATE DROP USE SHOW ALTER
 %token DATABASES DDATABASE TABLES TTABLE
-%token FROM WHERE VALUES SET INTO ADD CHANGE KEY NOT ON TO RENAME
+%token FROM WHERE VALUES SET INTO ADD CHANGE KEY NOT ON TO RENAME UNIQUE
 
 /* COLUMN DESCPRITION */
 %token FFLOAT CCHAR VARCHAR DDATE PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT IINT
@@ -174,9 +174,21 @@ stmt:
             Node::setInstance($$);
             Node::execute();
         }
+    | CREATE UNIQUE INDEX IDENTIFIER ON IDENTIFIER '(' columnList ')'
+        {
+            $$ = new AddIndex($4, $6, $8, "unique");
+            Node::setInstance($$);
+            Node::execute();
+        }
     | ALTER TTABLE IDENTIFIER ADD INDEX IDENTIFIER '(' columnList ')'
         {
             $$ = new AddIndex($3, $6, $8);
+            Node::setInstance($$);
+            Node::execute();
+        }
+    | ALTER TTABLE IDENTIFIER ADD UNIQUE INDEX IDENTIFIER '(' columnList ')'
+        {
+            $$ = new AddIndex($3, $7, $9, "unique");
             Node::setInstance($$);
             Node::execute();
         }

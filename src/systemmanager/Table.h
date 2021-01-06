@@ -33,7 +33,7 @@ class Table{
     int __loadIndex(const std::string& subName = "");
     void __loadFiles(const std::string& subName = "");
 public:
-    std::uint8_t __colId(const std::string& colName);
+    int __colId(const std::string& colName);
     void setNotNull(uint8_t colId);
     void setDefault(uint8_t colId, char defaultValue[]);
     void setPrimary(const std::vector<std::string>& c_names, std::string priName);

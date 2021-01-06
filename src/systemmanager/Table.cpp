@@ -13,14 +13,14 @@
 
 static std::string ixNames[] = {"", "pri", "foreign", "unique"};
 
-std::uint8_t Table::__colId(const std::string& colName){
+int Table::__colId(const std::string& colName){
     assert(header != nullptr);
     for (int i = 0; i < header->columnCnt; i ++){
         if (colName == header->columnNames[i]){
             return i;
         }
     }
-    return (uint8_t)-1;
+    return -1;
 }
 
 void Table::__setNotNull(uint8_t colId){
@@ -242,8 +242,11 @@ void Table::setPrimary(const std::vector<std::string>& c_names, std::string priN
     }
     for (int i = 0; i < c_names.size(); i ++){
         int colId = __colId(c_names[i]);
+        if (colId < 0){
+            throw "error: primary key column " + c_names[i] + " not exist";
+        }
         if (!(header->constraints[colId] & 4)){
-            throw "error: primary key column " + to_string(colId) + " must not null";
+            throw "error: primary key column " + c_names[i] + " must not null";
         }
     }
     __addIndex(c_names, priName, "pri");
@@ -255,8 +258,17 @@ void Table::dropPrimary(){
 }
 
 int Table::addForeignKey(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys, Table* refTb){
+    if (c_names.size() != refKeys.size()){
+        throw "error: foreign key column number not equal";
+    }
+    for (int i = 0; i < c_names.size(); i ++){
+        int colId = __colId(c_names[i]);
+        if (colId < 0){
+            throw "error: foreign key column " + c_names[i] + " not exist";
+        }
+    }
     if (refKeys.size() > refTb->priIx->keys.size()){
-        throw "error: foreign key cannot refer to primary key";
+        throw "error: foreign key column number more than primary key";
     }
     for (int i = 0; i < refKeys.size(); i ++){
         if (refKeys[i] != refTb->priIx->keys[i]){
@@ -411,6 +423,12 @@ void Table::showTable(){
 }
 
 int Table::addIndex(const std::vector<std::string>& c_names, const std::string& ixName, const std::string& ixClass){
+    for (int i = 0; i < c_names.size(); i ++){
+        int colId = __colId(c_names[i]);
+        if (colId < 0){
+            throw "error: index column " + c_names[i] + " not exist";
+        }
+    }
     __addIndex(c_names, ixName, ixClass);
     return __loadIndexFromTable(ims.size() - 1);
 }

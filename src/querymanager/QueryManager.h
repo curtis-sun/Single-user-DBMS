@@ -376,7 +376,7 @@ public:
         __type(type), __notNull(notNull) {
         if (defaultVal){
             AttrVal val = defaultVal->calc(nullptr, nullptr);
-            if (!attrConvert(val, type->type)){
+            if (val.type != NO_TYPE && !attrConvert(val, type->type)){
                 printf("warning: column field cannot convert %s to %d\n", attrToString(val).c_str(), type->type);
                 return;
             }
