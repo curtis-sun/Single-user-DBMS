@@ -83,6 +83,10 @@ void Insert::run(){
             if (!checkNotNulDefault(val, table, j + 1)){
                 return;
             }
+            if (!attrConvert(val, table->header->columnTypes[j + 1])){
+                printf("warning: insert cannot convert %s to %d\n", attrToString(val).c_str(), table->header->columnTypes[j + 1]);
+                return;
+            }
             attrValList.push_back(val);
             restoreAttr(temp + table->header->columnOffsets[j + 1], table->header->columnOffsets[j + 2] - table->header->columnOffsets[j + 1], attrValList[j]);
         }
@@ -145,6 +149,10 @@ void Update::run(){
                 AttrVal val = list->valueList.list[i]->calc(&rids, table);
                 int colId = table->__colId(list->identList.list[i]);
                 if (!checkNotNulDefault(val, table, colId)){
+                    return;
+                }
+                if (!attrConvert(val, table->header->columnTypes[colId])){
+                    printf("warning: update cannot convert %s to %d\n", attrToString(val).c_str(), table->header->columnTypes[colId]);
                     return;
                 }
                 restoreAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], val);

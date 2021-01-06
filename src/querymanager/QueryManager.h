@@ -369,17 +369,19 @@ class ColField : public Field {
     char __colName[MAX_NAME_LEN];
     Type* __type;
     bool __notNull;
-    char* __defaultVal;
+    char* __defaultVal = nullptr;
 
 public:
     ColField(const char* colName, Type* type, bool notNull = false, Expression* defaultVal = nullptr) :
         __type(type), __notNull(notNull) {
         if (defaultVal){
+            AttrVal val = defaultVal->calc(nullptr, nullptr);
+            if (!attrConvert(val, type->type)){
+                printf("warning: column field cannot convert %s to %d\n", attrToString(val).c_str(), type->type);
+                return;
+            }
             __defaultVal = new char[MAX_ATTR_LEN];
-            restoreAttr(__defaultVal, MAX_ATTR_LEN, defaultVal->calc(nullptr, nullptr));
-        }
-        else{
-            __defaultVal = nullptr;
+            restoreAttr(__defaultVal, MAX_ATTR_LEN, val);
         }
         memcpy(__colName, colName, MAX_NAME_LEN);
     }
