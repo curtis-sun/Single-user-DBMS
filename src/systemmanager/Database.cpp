@@ -64,6 +64,7 @@ int Database::openDatabase(){
 int Database::closeDatabase(){
     for (int i = 0; i < tables.size(); i ++){
         tables[i]->closeTable();
+        printf("info: table %s has been closed\n", tables[i]->name.c_str());
     }
 }
 

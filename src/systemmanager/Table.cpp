@@ -64,7 +64,8 @@ int Table::__loadIndexFromTable(int index){
     rm ->fileScan->openScan();
     char data[header->pminlen];
     RID_t rid;
-    while(!rm->fileScan->getNextEntry(data, rid)){
+    while(!rm->fileScan->getNextEntry(rid)){
+        rm->getRecord(rid, data);
         Entry entry;
         entry.rid = rid;
         for (int i = 0; i < columnCnt; i ++){
@@ -358,8 +359,8 @@ void Table::showTable(){
         }
         if (header->constraints[i] & 1){
             int valLen = header->columnOffsets[i + 1] - header->columnOffsets[i] - 1;
-            if (valLen > maxDefaultLen){
-                maxDefaultLen = valLen;
+            if (valLen + 1 > maxDefaultLen){
+                maxDefaultLen = valLen + 1;
             }
         }
     }
@@ -390,7 +391,7 @@ void Table::showTable(){
                 break;
             }
             case STRING: {
-                type = "varchar(" + to_string(header->columnOffsets[i + 1] - header->columnOffsets[i] - 1) + ")";
+                type = "char(" + to_string(header->columnOffsets[i + 1] - header->columnOffsets[i] - 1) + ")";
                 break;
             }
             case FLOAT: {
@@ -414,6 +415,7 @@ void Table::showTable(){
         }
         if (header->constraints[i] & 1){
             memcpy(defaultValue, rm ->defaultRow + header->columnOffsets[i] + 1, header->columnOffsets[i + 1] - header->columnOffsets[i] - 1);
+            defaultValue[header->columnOffsets[i + 1] - header->columnOffsets[i] - 1] = 0; // string last '\0'
             printf(" %-*s\n", maxDefaultLen, defaultValue);
         }
         else{
@@ -475,7 +477,8 @@ int Table::addColumn(AttrType type, int colLen, char colName[MAX_NAME_LEN], bool
     char data[header->pminlen];
     char newData[newHeader->pminlen];
     RID_t rid;
-    while(!rm->fileScan->getNextEntry(data, rid)){
+    while(!rm->fileScan->getNextEntry(rid)){
+        rm->getRecord(rid, data);
         memcpy(newData, data, header->pminlen);
         if (defaultValue){
             memcpy(newData + header->pminlen, defaultValue, colLen);
@@ -546,7 +549,8 @@ int Table::dropColumn(char colName[MAX_NAME_LEN]){
     char data[header->pminlen];
     char newData[newHeader->pminlen];
     RID_t rid;
-    while(!rm->fileScan->getNextEntry(data, rid)){
+    while(!rm->fileScan->getNextEntry(rid)){
+        rm->getRecord(rid, data);
         memcpy(newData, data, newHeader->columnOffsets[colId]);
         memcpy(newData + newHeader->columnOffsets[colId], data + header->columnOffsets[colId + 1], header->pminlen - header->columnOffsets[colId + 1]);
         RID_t tempRid;
@@ -618,7 +622,8 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
     char data[header->pminlen];
     char newData[newHeader->pminlen];
     RID_t rid;
-    while(!rm->fileScan->getNextEntry(data, rid)){
+    while(!rm->fileScan->getNextEntry(rid)){
+        rm->getRecord(rid, data);
         memcpy(newData, data, newHeader->columnOffsets[colId]);
         // 类型转换
         if (data[header->columnOffsets[colId]] == 1){

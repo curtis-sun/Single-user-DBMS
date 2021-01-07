@@ -4,7 +4,7 @@
 # compile CXX with /usr/bin/c++
 CXX_FLAGS =   -Wall -g
 
-CXX_DEFINES = -DDEBUG
+CXX_DEFINES = 
 
 CXX_INCLUDES = 
 

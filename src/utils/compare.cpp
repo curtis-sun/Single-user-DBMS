@@ -6,6 +6,7 @@
 #include <sstream>
 #include <string>
 #include <regex>
+# include <cmath>
 
 static int dateRestore(const std::string& dateFormat){
     int yearMonth = dateFormat.find("-");
@@ -89,6 +90,7 @@ static AttrVal recordToAttr(const char* data, int len, AttrType attrType){
 	}
 	val.type = attrType;
 	memcpy(val.s, data + 1, len - 1);
+	val.s[len - 1] = 0; // string last '\0'
 	switch(attrType){
 		case INTEGER:
 		case DATE: {
@@ -137,7 +139,7 @@ static bool attrConvert(AttrVal& val, AttrType newType){
 	}
 	if (newType == STRING){
 		std::string temp = attrToString(val);
-		memcpy(val.s, temp.c_str(), temp.length());
+		memcpy(val.s, temp.c_str(), temp.length() + 1);
 		val.type = newType;
 		return true;
 	}
@@ -322,12 +324,20 @@ static AttrVal calculate(AttrVal a, AttrVal b, CalcOp op){
 	}
 	switch(a.type){
 		case INTEGER:{
+			if (op == DIV_OP && b.val.i == 0){
+				printf("warning: attributes %s divided by zero\n", attrToString(a).c_str());
+				return AttrVal();
+			}
 			AttrVal val;
 			val.type = INTEGER;
 			val.val.i = calculate<int>(a.val.i, b.val.i, op);
 			return val;
 		}
 		case FLOAT:{
+			if (op == DIV_OP && fabs(b.val.f) < 1e-8){
+				printf("warning: attributes %s divided by zero\n", attrToString(a).c_str());
+				return AttrVal();
+			}
 			AttrVal val;
 			val.type = FLOAT;
 			val.val.f = calculate<float>(a.val.f, b.val.f, op);

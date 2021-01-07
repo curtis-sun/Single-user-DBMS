@@ -6,7 +6,6 @@ add_subdirectory(index)
 add_subdirectory(systemmanager)
 add_subdirectory(querymanager)
 
-add_definitions(-DDEBUG)
 add_definitions("-Wall -g")
 
 add_library(${CMAKE_PROJECT_NAME}_lib ${SOURCE} ${HEADERS})

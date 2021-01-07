@@ -9,8 +9,19 @@
 class Expression {
 public:
     std::set<std::string> tbs;
-    virtual AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) {
+
+    virtual ~Expression() = default;
+
+    virtual AttrVal calc(std::map<std::string, RID_t>* rids) {
         return AttrVal();
+    };
+    virtual bool bind(Table* table){
+        return false;
+    }
+
+    AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) {
+        bind(table);
+        return calc(rids);
     };
     bool contain(std::map<std::string, RID_t>* rids){
         for (auto i = tbs.begin(); i != tbs.end(); i ++){
@@ -38,7 +49,7 @@ public:
         switch(type){
             case STRING:{
                 val.s[0] = 0; // for empty string to display
-                memcpy(val.s, s, strlen(s));
+                memcpy(val.s, s, strlen(s) + 1);
                 break;
             }
             case DATE:{
@@ -53,7 +64,7 @@ public:
             }
         }
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) override {
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
         return val;
     }
 };
@@ -69,12 +80,17 @@ public:
         table = Database::instance()->getTableByName(t);
         tbs.insert(t);
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
-        if (!table){
-            if (!t){
-                throw "error: cannot locate column " + colName;
-            }
+    bool bind(Table* t) override{
+        if (!table && t){
             table = t;
+            tbs.insert(t->name);
+            return true;
+        }
+        return false;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
+        if (!table){
+            throw "error: cannot locate column " + colName;
         }
         RID_t rid = rids->at(table->name);
         char temp[table->header->pminlen];
@@ -97,9 +113,17 @@ public:
             tbs.insert(*i);
         }
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
-        AttrVal lVal = left ->calc(rids, t);
-        AttrVal rVal = right ->calc(rids, t);
+    bool bind(Table* t) override{
+        bool flag1 = left->bind(t), flag2 = right->bind(t);
+        if ((flag1 || flag2) && tbs.count(t->name) == 0){
+            tbs.insert(t->name);
+            return true;
+        }
+        return false;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
+        AttrVal lVal = left ->calc(rids);
+        AttrVal rVal = right ->calc(rids);
         switch(op){
             case ADD_OP:
             case SUB_OP:
@@ -123,6 +147,10 @@ public:
             }
         }
     }
+    ~Binary() override{
+        delete left;
+        delete right;
+    }
 };
 
 class Unary : public Expression{
@@ -135,9 +163,19 @@ public:
             tbs.insert(*i);
         }
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
-        AttrVal cVal = child ->calc(rids, t);
+    bool bind(Table* t) override{
+        if (child->bind(t) && tbs.count(t->name) == 0){
+            tbs.insert(t->name);
+            return true;
+        }
+        return false;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
+        AttrVal cVal = child ->calc(rids);
         return judge(cVal, op);
+    }
+    ~Unary() override{
+        delete child;
     }
 };
 
@@ -165,11 +203,21 @@ public:
             }
         }
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* t) override {
+    ~Relational() override{
+        delete binary;
+        delete unary;
+    }
+    bool bind(Table* t) override{
         if (binary){
-            return binary->calc(rids, t);
+            return binary->bind(t);
         }
-        return unary->calc(rids, t);
+        return unary->bind(t);
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
+        if (binary){
+            return binary->calc(rids);
+        }
+        return unary->calc(rids);
     }
     bool isChildConstant(std::map<std::string, RID_t>* rids){
         if (binary){
@@ -197,7 +245,26 @@ public:
     void addRelational(Relational* expr){
         exprList.push_back(expr);
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) override {
+    ~LogicalAnd() override{
+        for (int i = 0; i < exprList.size(); i ++){
+            delete exprList[i];
+        }
+    }
+
+    bool bind(Table* t) override{
+        bool flag = false;
+        for (int i = 0; i < exprList.size(); i ++){
+            if (exprList[i]->bind(t)){
+                flag = true;
+            }
+        }
+        if (flag && tbs.count(t->name) == 0){
+            tbs.insert(t->name);
+            return true;
+        }
+        return false;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
         AttrVal lVal;
         lVal.type = INTEGER;
         lVal.val.i = 1;
@@ -205,7 +272,7 @@ public:
             if (!exprList[i]->contain(rids)){
                 continue;
             }
-            AttrVal rVal = exprList[i] ->calc(rids, table);
+            AttrVal rVal = exprList[i] ->calc(rids);
             lVal = logic(lVal, rVal, CalcOp::AND_OP);
             if (!lVal.val.i){
                 break;
@@ -292,21 +359,20 @@ public:
         indexScan = table->ims[maxId]->indexScan;
         printf("info: index %s has been used\n", table->ims[maxId]->ixName.c_str());
     }
-    void openScan(std::map<std::string, RID_t>* rids, Table* table){
+    void openScan(std::map<std::string, RID_t>* rids){
         if (!indexScan){
             fileScan->openScan();
             return;
         }
         Entry entry;
         for (int i = 0; i < maxExprList->size(); i ++){
-            entry.vals[i] = maxExprList->at(i).expr->calc(rids, table);
+            entry.vals[i] = maxExprList->at(i).expr->calc(rids);
         }
         indexScan->openScan(entry, maxExprList->size(), maxExprList->at(maxExprList->size() - 1).op);
     }
-    int getNextEntry(RID_t& rid, Table* table){
+    int getNextEntry(RID_t& rid){
         if (!indexScan){
-            char temp[table->header->pminlen];
-            return fileScan->getNextEntry(temp, rid);
+            return fileScan->getNextEntry(rid);
         }
         return indexScan->getNextEntry(rid);
     }
@@ -321,7 +387,20 @@ public:
     void addLogicalAnd(LogicalAnd* expr){
         exprList.push_back(expr);
     }
-    AttrVal calc(std::map<std::string, RID_t>* rids, Table* table) override {
+    bool bind(Table* t) override{
+        bool flag = false;
+        for (int i = 0; i < exprList.size(); i ++){
+            if (exprList[i]->bind(t)){
+                flag = true;
+            }
+        }
+        if (flag && tbs.count(t->name) == 0){
+            tbs.insert(t->name);
+            return true;
+        }
+        return false;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
         AttrVal lVal;
         lVal.type = INTEGER;
         lVal.val.i = 0;
@@ -329,13 +408,44 @@ public:
             if (!exprList[i]->contain(rids)){
                 continue;
             }
-            AttrVal rVal = exprList[i] ->calc(rids, table);
+            AttrVal rVal = exprList[i] ->calc(rids);
             lVal = logic(lVal, rVal, CalcOp::OR_OP);
             if (lVal.val.i){
                 break;
             }
         }
         return lVal;
+    }
+    ~WhereClause() override{
+        for (int i = 0; i < exprList.size(); i ++){
+            delete exprList[i];
+        }
+    }
+};
+
+class Row{
+public:
+    std::vector<RID_t> rowList;
+    Row(){
+        rowList.reserve(MAX_COL_NUM);
+    }
+    Row(const Row& r){
+        rowList.reserve(MAX_COL_NUM);
+        for (int k = 0; k < r.rowList.size(); k ++){
+            rowList.push_back(r.rowList[k]);
+        }
+    }
+    bool operator<(const Row& r) const{
+        int i;
+        for (i = 0; i < min(rowList.size(), r.rowList.size()); i ++){
+            if (rowList[i] < r.rowList[i]){
+                return true;
+            }
+            if (r.rowList[i] < rowList[i]){
+                return false;
+            }
+        }
+        return i < r.rowList.size();
     }
 };
 
@@ -345,6 +455,195 @@ public:
     void addValue(Expression* exp){
         list.push_back(exp);
     }
+    ~ValueList(){
+        for (int i = 0; i < list.size(); i ++){
+            delete list[i];
+        }
+    }
+};
+
+class Agrg {
+public:
+    virtual AttrVal calc(std::set<Row>* rows, IdentList* tableList) {
+        return AttrVal();
+    }
+    virtual void bind(Table* table){};
+    virtual ~Agrg() = default;
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList, Table* table) {
+        bind(table);
+        return calc(rows, tableList);
+    }
+};
+
+class AgrgCount : public Agrg {
+public:
+    ValueList* list;
+    AgrgCount(ValueList* v){
+        list = v;
+    }
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList) override {
+        int num = 0;
+        if (!list){
+            num = rows->size();
+        }
+        else{
+            std::set<AttrList<MAX_COL_NUM>> attrListSet;
+            AttrList<MAX_COL_NUM> attrList;
+            attrList.rid = 0;
+            std::map<std::string, RID_t> rids;
+            for (auto it = rows->begin(); it != rows->end(); it ++){
+                for (int j = 0; j < tableList->list.size(); j ++){
+                    rids[tableList->list[j]] = it->rowList[j];
+                }
+                bool flag = true;
+                for (int j = 0; j < list->list.size(); j ++){
+                    attrList.vals[j] = list->list[j]->calc(&rids);
+                    if (attrList.vals[j].type == NO_TYPE){
+                        flag = false;
+                        break;
+                    }
+                }
+                if (flag){
+                    attrListSet.insert(attrList);
+                }
+            }
+            num = attrListSet.size();
+        }
+        AttrVal ans;
+        ans.type = INTEGER;
+        ans.val.i = num;
+        return ans;
+    }
+    void bind(Table* table)override{
+        if (list){
+            for (int i = 0; i < list->list.size(); i ++){
+                list->list[i]->bind(table);
+            }
+        }
+    }
+    ~AgrgCount() override{
+        delete list;
+    }
+};
+
+class AgrgSum : public Agrg {
+public:
+    Expression* expr;
+    AgrgSum(Expression* e){
+        expr = e;
+    }
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList) override {
+        AttrVal ans = AttrVal();
+        std::map<std::string, RID_t> rids;
+        for (auto it = rows->begin(); it != rows->end(); it ++){
+            for (int j = 0; j < tableList->list.size(); j ++){
+                rids[tableList->list[j]] = it->rowList[j];
+            }
+            AttrVal val = expr->calc(&rids);
+            if (ans.type == NO_TYPE){
+                ans = val;
+            }
+            else{
+                ans = calculate(ans, val, ADD_OP);
+            }
+        }
+        return ans;
+    }
+    void bind(Table* table)override{
+        expr->bind(table);
+    }
+    ~AgrgSum(){
+        delete expr;
+    }
+};
+
+class AgrgAvg : public Agrg {
+public:
+    AgrgSum* sum;
+    AgrgAvg(Expression* e){
+        sum = new AgrgSum(e);
+    }
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList) override {
+        AttrVal val = sum->calc(rows, tableList);
+        AttrVal temp;
+        temp.type = INTEGER;
+        temp.val.i = rows->size();
+        return calculate(val, temp, DIV_OP);
+    }
+    void bind(Table* table)override{
+        sum->bind(table);
+    }
+    ~AgrgAvg(){
+        delete sum;
+    }
+};
+
+class AgrgMax : public Agrg {
+public:
+    Expression* expr;
+    AgrgMax(Expression* e){
+        expr = e;
+    }
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList) override {
+        AttrVal ans = AttrVal();
+        std::map<std::string, RID_t> rids;
+        for (auto it = rows->begin(); it != rows->end(); it ++){
+            for (int j = 0; j < tableList->list.size(); j ++){
+                rids[tableList->list[j]] = it->rowList[j];
+            }
+            AttrVal val = expr->calc(&rids);
+            if (ans.type == NO_TYPE){
+                ans = val;
+            }
+            else{
+                AttrVal cmp = compare(val, ans, GT_OP);
+                if (cmp.type == INTEGER && cmp.val.i){
+                    ans = val;
+                }
+            }
+        }
+        return ans;
+    }
+    void bind(Table* table)override{
+        expr->bind(table);
+    }
+    ~AgrgMax(){
+        delete expr;
+    }
+};
+
+class AgrgMin : public Agrg {
+public:
+    Expression* expr;
+    AgrgMin(Expression* e){
+        expr = e;
+    }
+    AttrVal calc(std::set<Row>* rows, IdentList* tableList) override {
+        AttrVal ans = AttrVal();
+        std::map<std::string, RID_t> rids;
+        for (auto it = rows->begin(); it != rows->end(); it ++){
+            for (int j = 0; j < tableList->list.size(); j ++){
+                rids[tableList->list[j]] = it->rowList[j];
+            }
+            AttrVal val = expr->calc(&rids);
+            if (ans.type == NO_TYPE){
+                ans = val;
+            }
+            else{
+                AttrVal cmp = compare(val, ans, LT_OP);
+                if (cmp.type == INTEGER && cmp.val.i){
+                    ans = val;
+                }
+            }
+        }
+        return ans;
+    }
+    void bind(Table* table)override{
+        expr->bind(table);
+    }
+    ~AgrgMin(){
+        delete expr;
+    }
 };
 
 class ValueLists {
@@ -352,6 +651,34 @@ public:
     std::vector<ValueList*> list;
     void addValueList(ValueList* valueList){
         list.push_back(valueList);
+    }
+    ~ValueLists(){
+        for (int i = 0; i < list.size(); i ++){
+            delete list[i];
+        }
+    }
+};
+
+class Selector {
+public:
+    ValueList valueList;
+    std::vector<Agrg*> agrgList;
+    void addValue(Expression* exp){
+        if (agrgList.size() > 0){
+            throw "error: aggregate function cannot select together with column";
+        }
+        valueList.addValue(exp);
+    }
+    void addAgrg(Agrg* agrg){
+        if (valueList.list.size() > 0){
+            throw "error: aggregate function cannot select together with column";
+        }
+        agrgList.push_back(agrg);
+    }
+    ~Selector(){
+        for (int i = 0; i < agrgList.size(); i ++){
+            delete agrgList[i];
+        }
     }
 };
 
@@ -401,6 +728,10 @@ public:
     void changeColumn(Table* table, char oldColName[MAX_NAME_LEN]) override {
         table -> changeColumn(oldColName, __type -> type, __type -> valLen, __colName, __notNull, __defaultVal);
     };
+    ~ColField() override{
+        delete __type;
+        delete[] __defaultVal;
+    }
 };
 
 class Insert : public Node {
@@ -410,6 +741,22 @@ public:
     Insert(const char* name, ValueLists* l){
         tbName = name;
         lists = l;
+    }
+    void run() override;
+    ~Insert() override{
+        delete lists;
+    }
+};
+
+class Copy : public Node {
+    std::string tbName, path, format, delimiter;
+public:
+    static std::vector<char*> inserts;
+    Copy(const char* n, const char* p, const char* f, const char* d){
+        tbName = n;
+        path = p;
+        format = f;
+        delimiter = d;
     }
     void run() override;
 };
@@ -423,6 +770,9 @@ public:
         clause = c;
     }
     void run() override;
+    ~Delete() override{
+        delete clause;
+    }
 };
 
 class Update : public Node {
@@ -436,18 +786,27 @@ public:
         clause = c;
     }
     void run() override;
+    ~Update() override{
+        delete list;
+        delete clause;
+    }
 };
 
 class Select : public Node {
-    ValueList* selector;
+    Selector* selector;
     IdentList* tableList;
     WhereClause* clause;
 public:
-    Select(ValueList* s, IdentList* t, WhereClause* c){
+    Select(Selector* s, IdentList* t, WhereClause* c = nullptr){
         selector = s;
         tableList = t;
         clause = c;
     }
     void run() override;
+    ~Select() override{
+        delete selector;
+        delete tableList;
+        delete clause;
+    }
 };
 # endif

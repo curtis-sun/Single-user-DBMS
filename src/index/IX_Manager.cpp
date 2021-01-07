@@ -22,7 +22,11 @@ std::string IX_Manager::__indexName(){
 void IX_Manager::openIndex(){
     std::ifstream fin(__indexName().substr(ixPath.length() + 1));
     if (!btree->restore(fin)){
+        fin.close();
         throw "warning: index restore fail " + ixName;
+    }
+    else{
+        fin.close();
     }
     /*
     indexScan->openScan(Entry(), ADD_OP);
@@ -35,6 +39,7 @@ void IX_Manager::openIndex(){
 void IX_Manager::closeIndex(){
     std::ofstream fout(__indexName());
     btree->dump(fout);
+    fout.close();
 }
 
 void IX_Manager::destroyIndex(){

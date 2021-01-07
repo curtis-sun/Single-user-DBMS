@@ -5,11 +5,12 @@
 # include "btree_set.h"
 # include <vector>
 
-struct Entry{
+template<int num>
+struct AttrList{
     RID_t rid;
-    AttrVal vals[MAX_IX_NUM];
-    bool operator< (const Entry &b) const {
-        for(int i = 0; i < MAX_IX_NUM; i ++){
+    AttrVal vals[num];
+    bool operator< (const AttrList<num> &b) const {
+        for(int i = 0; i < num; i ++){
             if (vals[i].type != NO_TYPE && b.vals[i].type == NO_TYPE){
                 return false;
             }
@@ -65,6 +66,8 @@ struct Entry{
         return rid < b.rid;
     }
 };
+
+typedef AttrList<MAX_IX_NUM> Entry;
 
 class IX_Manager;
 

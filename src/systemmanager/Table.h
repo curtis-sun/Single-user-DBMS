@@ -61,7 +61,7 @@ public:
     TableHeader* header;
     RecordManager* rm;
     std::vector<IX_Manager*> ims;
-    IX_Manager* priIx;
+    IX_Manager* priIx = nullptr;
     
     Table(const std::string& m_dbname, const std::string& m_name);
     ~Table(){

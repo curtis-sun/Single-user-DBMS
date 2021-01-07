@@ -39,7 +39,7 @@
 /*
  * 一个表中列的上限
  */
-#define MAX_COL_NUM 31
+#define MAX_COL_NUM 32
 #define MAX_NAME_LEN 63
 /*
  * 数据库中表的个数上限
@@ -59,8 +59,8 @@ typedef uint64_t RID_t;
 //int current = 0;
 //int tt = 0;
 
-#define MAX_ATTR_LEN 255
-#define MAX_IX_NUM 16
+#define MAX_ATTR_LEN 256
+#define MAX_IX_NUM 8
 
 enum AttrType {
     INTEGER, STRING, FLOAT, DATE, NO_TYPE, POS_TYPE

@@ -87,6 +87,10 @@ btree.h
 /mnt/f/Github/Single-user-DBMS/src/querymanager/QueryManager.cpp
 QueryManager.h
 /mnt/f/Github/Single-user-DBMS/src/querymanager/QueryManager.h
+fstream
+-
+cassert
+-
 
 /mnt/f/Github/Single-user-DBMS/src/querymanager/QueryManager.h
 SqlParser.h
@@ -196,6 +200,8 @@ sstream
 string
 -
 regex
+-
+cmath
 -
 
 /mnt/f/Github/Single-user-DBMS/src/utils/pagedef.h

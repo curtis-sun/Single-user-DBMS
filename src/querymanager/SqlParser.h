@@ -114,6 +114,12 @@ public:
             list[i]->addForeign(table, "foreign_" + to_string(i));
         }
     }
+
+    ~FieldList(){
+        for (int i = 0; i < list.size(); i ++){
+            delete list[i];
+        }
+    }
 };
 
 class Node {

@@ -52,7 +52,7 @@ class RM_FileScan {
     RM_FileScan(RecordManager* m_rm):rm(m_rm){}
 public:                                                                 
     void openScan();           
-    int getNextEntry(char* data, RID_t& rid);                   
+    int getNextEntry(RID_t& rid);                   
     //void closeScan();
     friend RecordManager;                                 
 };

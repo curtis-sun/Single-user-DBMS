@@ -57,10 +57,6 @@ foreign|FOREIGN                     { return FOREIGN; }
 references|REFERENCES               { return REFERENCES; }
 on|ON                               { return ON; }
 to|TO                               { return TO; }
-
-unique|UNIQUE                       { return UNIQUE; }
-check|CHECK                         { return CHECK; }
-or|OR                               { return OR; }
 "="                                 { return EQ; }
 ">"                                 { return GT; }
 "<"                                 { return LT; }
@@ -68,6 +64,18 @@ or|OR                               { return OR; }
 "<>"                                { return NE; }
 ">="                                { return GE; }
 "<="                                { return LE; }
+quit|QUIT                           { return QUIT; }
+decimal|DECIMAL                     { return FFLOAT; }
+integer|INTEGER                     { return IINT; }
+
+unique|UNIQUE                       { return UNIQUE; }
+copy|COPY                           { return COPY; }
+with|WITH                           { return WITH; }
+delimiter|DELIMITER                 { return DELIMITER; }
+format|FORMAT                       { return FORMAT; }
+distinct|DISTINCT                   { return DISTINCT; }
+check|CHECK                         { return CHECK; }
+or|OR                               { return OR; }
 in|IN                               { return IN; }
 like|LIKE                           { return LIKE; }
 count|COUNT                         { return COUNT; }
@@ -75,9 +83,13 @@ sum|SUM                             { return SUM; }
 min|MIN                             { return MIN; }
 max|MAX                             { return MAX; }
 avg|AVG                             { return AVG; }
-group|GROUP                         { return GROUP; }
-quit|QUIT                           { return QUIT; }
-{IDENTIFIER}                        { yylval.val_s = strdup(yytext); return IDENTIFIER; }
+
+{IDENTIFIER}                        { yylval.val_s = strdup(yytext); 
+    for (int i = 0; i < strlen(yylval.val_s); i ++){
+        if (yylval.val_s[i] >= 'A' && yylval.val_s[i] <= 'Z'){
+            yylval.val_s[i] += 'a' - 'A';
+        }
+    } return IDENTIFIER; }
 {DATE_FORMAT}                       { yylval.val_s = strndup(yytext + 1, strlen(yytext) - 2); return DATE_FORMAT; }
 {STRING_FORMAT}                     { yylval.val_s = strndup(yytext + 1, strlen(yytext) - 2); return STRING_FORMAT; }
 {INT_FORMAT}                        { yylval.val_i = atoi(yytext); return INT_FORMAT; }

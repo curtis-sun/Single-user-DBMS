@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <stdlib.h>
 #include "parser.yy.cpp"
+# define YYDEBUG 1
 
 int yylex();
 int yyerror(const char *);
@@ -24,17 +25,19 @@ int yyerror(const char *);
     Relational* relational;
     SetList* setList;
     IdentList* identList;
+    Selector* selector;
+    Agrg* aggregate;
 }
 
 /* keyword */
 %token QUIT
-%token SELECT DELETE UPDATE INSERT
+%token SELECT DELETE UPDATE INSERT COPY
 %token CREATE DROP USE SHOW ALTER
 %token DATABASES DDATABASE TABLES TTABLE
-%token FROM WHERE VALUES SET INTO ADD CHANGE KEY NOT ON TO RENAME UNIQUE
+%token FROM WHERE VALUES SET INTO ADD CHANGE KEY NOT ON TO RENAME UNIQUE WITH DELIMITER FORMAT PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT DISTINCT
 
 /* COLUMN DESCPRITION */
-%token FFLOAT CCHAR VARCHAR DDATE PRIMARY FOREIGN REFERENCES CONSTRAINT DEFAULT IINT
+%token FFLOAT CCHAR VARCHAR DDATE IINT
 
 /* number */
 %token <val_i> INT_FORMAT
@@ -47,20 +50,22 @@ int yyerror(const char *);
 /* aggretation */
 %token AVG SUM MIN MAX COUNT
 
-%token DESC GROUP LIKE INDEX CHECK IN NNULL IS AND OR
+%token DESC LIKE INDEX CHECK IN NNULL IS AND OR
 
 %type <node> stmt
 %type <__fieldList> fieldList
 %type <__field> field
 %type <__type> type
 %type <__valueLists> valueLists
-%type <__valueList> valueList selector
+%type <__valueList> valueList colList
 %type <expression> expression multiplicative primary value col
 %type <whereClause> whereClause
 %type <logicalAnd> logicalAnd
 %type <relational> relational
 %type <setList> setClause
 %type <identList> tableList columnList
+%type <selector> selector
+%type <aggregate> aggregate
 
 %start program
 
@@ -77,6 +82,7 @@ stmt:
             $$ = new Quit();
             Node::setInstance($$);
             Node::execute();
+            YYACCEPT;
         }
 
 
@@ -140,6 +146,14 @@ stmt:
             $$ = new Insert($3, $5);
             Node::setInstance($$);
             Node::execute();
+            YYACCEPT;
+        }
+    | COPY IDENTIFIER FROM STRING_FORMAT WITH '(' FORMAT STRING_FORMAT ',' DELIMITER STRING_FORMAT ')'
+        {
+            $$ = new Copy($2, $4, $8, $11);
+            Node::setInstance($$);
+            Node::execute();
+            YYACCEPT;
         }
     | DELETE FROM IDENTIFIER WHERE whereClause
         {
@@ -161,7 +175,7 @@ stmt:
         }
     | SELECT selector FROM tableList
         {
-            $$ = new Select($2, $4, nullptr);
+            $$ = new Select($2, $4);
             Node::setInstance($$);
             Node::execute();
         }
@@ -357,6 +371,19 @@ value:
     | NNULL { $$ = new Primary(nullptr, AttrType::NO_TYPE); }
     ;
 
+colList:
+    col
+        {
+            $$ = new ValueList();
+            $$->addValue($1);
+        }
+    | colList ',' col
+        {
+            $$ = $1;
+            $$->addValue($3);
+        }
+    ;
+
 whereClause:
     logicalAnd
         {
@@ -496,13 +523,50 @@ selector:
         }
     | expression
         {
-            $$ = new ValueList();
+            $$ = new Selector();
             $$->addValue($1);
+        }
+    | aggregate
+        {
+            $$ = new Selector();
+            $$->addAgrg($1);
         }
     | selector ',' expression
         {
             $$ = $1;
             $$->addValue($3);
+        }
+    | selector ',' aggregate
+        {
+            $$ = $1;
+            $$->addAgrg($3);
+        }
+    ;
+
+aggregate:
+    COUNT '(' '*' ')'
+        {
+            $$ = new AgrgCount(nullptr);
+        }
+    | COUNT '(' DISTINCT colList ')'
+        {
+            $$ = new AgrgCount($4);
+        }
+    | SUM '(' col ')'
+        {
+            $$ = new AgrgSum($3);
+        }
+    | AVG '(' col ')'
+        {
+            $$ = new AgrgAvg($3);
+        }
+    | MIN '(' col ')'
+        {
+            $$ = new AgrgMin($3);
+        }
+    | MAX '(' col ')'
+        {
+            $$ = new AgrgMax($3);
         }
     ;
 
@@ -545,7 +609,8 @@ char start_parse(const char *expr_input)
         YY_BUFFER_STATE my_string_buffer = yy_scan_string(expr_input);
         yy_switch_to_buffer( my_string_buffer ); // switch flex to the buffer we just created
         ret = yyparse();
-        yy_delete_buffer(my_string_buffer );
+        yy_delete_buffer(my_string_buffer);
+        yylex_destroy();
     }else{
         ret = yyparse();
     }
