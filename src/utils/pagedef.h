@@ -67,7 +67,7 @@ enum AttrType {
 };
 
 enum CalcOp {
-    ADD_OP, SUB_OP, MUL_OP, DIV_OP, LIKE_OP, OR_OP, AND_OP, EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, IS_NULL, NOT_NULL
+    ADD_OP, SUB_OP, MUL_OP, DIV_OP, LIKE_OP, OR_OP, AND_OP, EQ_OP, LT_OP, GT_OP, LE_OP, GE_OP, NE_OP, IS_NULL, NOT_NULL, IN_OP
 };
 
 struct AttrVal{

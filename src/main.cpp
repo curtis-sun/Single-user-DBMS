@@ -16,6 +16,7 @@ int main(){
                     Copy::inserts.erase(Copy::inserts.begin());
                 }
                 else{
+                    delete[] input;
                     input = nullptr;
                 }
             }

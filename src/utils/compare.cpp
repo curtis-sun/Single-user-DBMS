@@ -108,7 +108,7 @@ static AttrVal recordToAttr(const char* data, int len, AttrType attrType){
 			throw "error: record cannot convert to attribute because of unknown type";
 		}
 	}
-	return val;
+	return std::move(val);
 }
 
 static bool isAttrConvert(AttrType type, AttrType newType){

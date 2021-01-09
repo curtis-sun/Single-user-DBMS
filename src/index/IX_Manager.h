@@ -5,12 +5,23 @@
 # include "btree_set.h"
 # include <vector>
 
-template<int num>
-struct AttrList{
+class AttrList{
+public:
     RID_t rid;
-    AttrVal vals[num];
-    bool operator< (const AttrList<num> &b) const {
-        for(int i = 0; i < num; i ++){
+    std::vector<AttrVal> vals;
+
+    AttrList(){}
+    AttrList(const AttrList& attrList, int len){
+        rid = attrList.rid;
+        if (len > attrList.vals.size()){
+            len = attrList.vals.size();
+        }
+        for (int i = 0; i < len; i ++){
+            vals.push_back(attrList.vals[i]);
+        }
+    }
+    bool operator< (const AttrList &b) const {
+        for(int i = 0; i < vals.size(); i ++){
             if (vals[i].type != NO_TYPE && b.vals[i].type == NO_TYPE){
                 return false;
             }
@@ -59,7 +70,7 @@ struct AttrList{
                     break;
                 }
                 default: {
-                    throw "error: unknown entry value type " + std::to_string(vals[i].type);
+                    throw "error: unknown attrlist value type " + std::to_string(vals[i].type);
                 }
             }
         }
@@ -67,28 +78,56 @@ struct AttrList{
     }
 };
 
-typedef AttrList<MAX_IX_NUM> Entry;
+struct IxElement{
+    char val[MAX_ATTR_LEN];
+    IxElement& operator=(const IxElement& el){
+        memcpy(val, el.val, sizeof(val));
+        return *this;
+    }
+};
+
+struct IxCol{
+    std::string name;
+    int offset;
+    AttrType type;
+    bool operator< (const IxCol &b) const {
+        return name < b.name;
+    }
+    bool operator== (const IxCol &b) const {
+        return name == b.name;
+    }
+};
 
 class IX_Manager;
 
+class Comparator{
+public:
+    IX_Manager* im;
+    Comparator(IX_Manager* i){
+        im = i;
+    }
+    bool operator()(const IxElement& x, const IxElement& y) const;
+};
+
 class IX_IndexScan { 
     CalcOp compOp;
-    stx::btree_set<Entry>* btree;
+    
+    stx::btree_set<IxElement, Comparator>* btree;
     IX_Manager* im;
 
-    IX_IndexScan(stx::btree_set<Entry>* b, IX_Manager* i): btree(b), im(i){}  
-    void __lowestFill(Entry& entry, int len);
-    void __uppestFill(Entry& entry, int len);
+    IX_IndexScan(stx::btree_set<IxElement, Comparator>* b, IX_Manager* i): btree(b), im(i){}  
+    void __lowestFill(AttrList& entry);
+    void __uppestFill(AttrList& entry);
 public: 
-    stx::btree_set<Entry>::iterator iter, lowerMid, upperMid, upperBound;                                                                
-    void openScan(const Entry& data, int num, CalcOp m_compOp);           
+    stx::btree_set<IxElement, Comparator>::iterator iter, lowerMid, upperMid, upperBound;                                                                
+    void openScan(const AttrList& data, int num, CalcOp m_compOp);           
     int getNextEntry(RID_t& rid);                   
     //void closeScan();   
     friend IX_Manager;                           
 };
 
 class IX_Manager{
-    stx::btree_set<Entry>* btree;
+    stx::btree_set<IxElement, Comparator>* btree;
     std::string ixPath;
 
     std::string __indexName();
@@ -97,17 +136,20 @@ public:
     void openIndex();
     void closeIndex();
 
-    void insertEntry(const Entry& data);
-    void deleteEntry(const Entry& data);
+    void insertEntry(const AttrList& data);
+    void deleteEntry(const AttrList& data);
 
-    IX_Manager(const std::string& path, const std::string& name, const std::string& c, const std::vector<std::string>& c_names);
-    IX_Manager(const std::string& path, const std::string& name, const std::vector<std::string>& c_names, const std::string& m_refTbName, const std::vector<std::string>& m_refKeys);
+    void restoreAttrList(const AttrList& list, char* data);
+    void recordToAttrList(const char* record, AttrList& list);
+
+    IX_Manager(const std::string& path, const std::string& name, const std::string& c, const std::vector<IxCol>& c_names);
+    IX_Manager(const std::string& path, const std::string& name, const std::vector<IxCol>& c_names, const std::string& m_refTbName, const std::vector<std::string>& m_refKeys);
     ~IX_Manager(){
         delete indexScan;
     }
 
     IX_IndexScan* indexScan;
-    std::vector<std::string> keys;
+    std::vector<IxCol> keys;
     std::string ixName;
     std::string ixClass;
     std::string refTbName;

@@ -283,7 +283,7 @@ public:
     void judgeScan(std::map<std::string, RID_t>* rids, Table* table){
         std::vector<RelTuple> cmpList;
         for (int i = 0; i < exprList.size(); i ++){
-            if (exprList[i]->isChildConstant(rids) && (!exprList[i]->col->table || exprList[i]->col->table->name == table->name)){
+            if (exprList[i]->isChildConstant(rids) && exprList[i]->col->table && exprList[i]->col->table->name == table->name){
                 switch(exprList[i]->op){
                     case IS_NULL:
                     case NOT_NULL:{
@@ -299,13 +299,19 @@ public:
                         cmpList.push_back(temp);
                         break;
                     }
-                    default:{
+                    case EQ_OP: 
+                    case LT_OP:
+                    case GT_OP: 
+                    case LE_OP:
+                    case GE_OP:
+                    case NE_OP:{
                         RelTuple temp;
                         temp.colName = exprList[i]->col->colName;
                         temp.op = exprList[i]->op;
                         temp.expr = exprList[i]->binary->right;
                         cmpList.push_back(temp);
                     }
+                    default:{}
                 }
             }
         }
@@ -319,7 +325,7 @@ public:
         for (int i = 0; i < table->ims.size(); i ++){
             std::vector<RelTuple>* tempList = new std::vector<RelTuple>();
             for (int j = 0; j < table->ims[i]->keys.size(); j ++){
-                std::string key = table->ims[i]->keys[j];
+                std::string key = table->ims[i]->keys[j].name;
                 int eqId = -1, cmpId = -1;
                 for (int k = 0; k < cmpList.size(); k ++){
                     if (cmpList[k].colName == key){
@@ -364,9 +370,9 @@ public:
             fileScan->openScan();
             return;
         }
-        Entry entry;
+        AttrList entry;
         for (int i = 0; i < maxExprList->size(); i ++){
-            entry.vals[i] = maxExprList->at(i).expr->calc(rids);
+            entry.vals.push_back(maxExprList->at(i).expr->calc(rids));
         }
         indexScan->openScan(entry, maxExprList->size(), maxExprList->at(maxExprList->size() - 1).op);
     }
@@ -487,8 +493,8 @@ public:
             num = rows->size();
         }
         else{
-            std::set<AttrList<MAX_COL_NUM>> attrListSet;
-            AttrList<MAX_COL_NUM> attrList;
+            std::set<AttrList> attrListSet;
+            AttrList attrList;
             attrList.rid = 0;
             std::map<std::string, RID_t> rids;
             for (auto it = rows->begin(); it != rows->end(); it ++){
@@ -497,7 +503,7 @@ public:
                 }
                 bool flag = true;
                 for (int j = 0; j < list->list.size(); j ++){
-                    attrList.vals[j] = list->list[j]->calc(&rids);
+                    attrList.vals.push_back(list->list[j]->calc(&rids));
                     if (attrList.vals[j].type == NO_TYPE){
                         flag = false;
                         break;
@@ -803,10 +809,44 @@ public:
         clause = c;
     }
     void run() override;
+    void run(std::vector<AttrVal>* selectResult);
     ~Select() override{
         delete selector;
         delete tableList;
         delete clause;
+    }
+};
+
+class InExpr : public Unary{
+public:
+    std::vector<AttrVal>* valList;
+    InExpr(Expression* c, ValueList* list) : Unary(c, IN_OP){
+        valList = new std::vector<AttrVal>();
+        for (int i = 0; i < list->list.size(); i ++){
+            valList->push_back(list->list[i]->calc(nullptr));
+        }
+    }
+    InExpr(Expression* c, Select* select) : Unary(c, IN_OP){
+        valList = new std::vector<AttrVal>();
+        select->run(valList);
+        delete select;
+    }
+    AttrVal calc(std::map<std::string, RID_t>* rids) override {
+        AttrVal result;
+        result.type = INTEGER;
+        AttrVal cVal = child ->calc(rids);
+        for (int i = 0; i < valList->size(); i ++){
+            AttrVal temp = compare(cVal, valList->at(i), EQ_OP);
+            if (temp.type == INTEGER && temp.val.i){
+                result.val.i = 1;
+                return result;
+            }
+        }
+        result.val.i = 0;
+        return result;
+    }
+    ~InExpr() override{
+        delete valList;
     }
 };
 # endif

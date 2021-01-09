@@ -8,7 +8,7 @@
 std::string IX_Manager::__indexName(){
     std::string tableName =  ixPath + "/" + ixName;
     for(uint8_t i = 0; i < keys.size(); i ++){
-        tableName = tableName + "%" + keys[i];
+        tableName = tableName + "%" + keys[i].name;
     }
     if (!refKeys.empty()){
         tableName = tableName + "#" + refTbName;
@@ -50,92 +50,130 @@ void IX_Manager::destroyIndex(){
     }
 }
 
-void IX_Manager::insertEntry(const Entry& data){
-    btree->insert(data);
+void IX_Manager::restoreAttrList(const AttrList& list, char* data){
+    memcpy(data, &list.rid, 8);
+    for (int i = 0; i < list.vals.size(); i ++){
+        if (i == 0){
+            restoreAttr(data + 8, keys[i].offset, list.vals[i]);
+        }
+        else{
+            restoreAttr(data + 8 + keys[i - 1].offset, keys[i].offset - keys[i - 1].offset, list.vals[i]);
+        }
+    }
 }
 
-void IX_Manager::deleteEntry(const Entry& data){
-    btree->erase(data);
+void IX_Manager::recordToAttrList(const char* record, AttrList& list){
+    memcpy(&list.rid, record, 8);
+    list.vals.clear();
+    for (int i = 0; i < keys.size(); i ++){
+        if (i == 0){
+            list.vals.push_back(recordToAttr(record + 8, keys[i].offset, keys[i].type));
+        }
+        else{
+            list.vals.push_back(recordToAttr(record + 8 + keys[i - 1].offset, keys[i].offset - keys[i - 1].offset, keys[i].type));
+        }
+    }
 }
 
-IX_Manager::IX_Manager(const std::string& path, const std::string& name, const std::string& c, const std::vector<std::string>& c_names){
+void IX_Manager::insertEntry(const AttrList& data){
+    IxElement temp;
+    //char temp[keys[keys.size() - 1].offset + 8];
+    restoreAttrList(data, temp.val);
+    btree->insert(temp);
+}
+
+void IX_Manager::deleteEntry(const AttrList& data){
+    IxElement temp;
+    //char temp[keys[keys.size() - 1].offset + 8];
+    restoreAttrList(data, temp.val);
+    btree->erase(temp);
+}
+
+IX_Manager::IX_Manager(const std::string& path, const std::string& name, const std::string& c, const std::vector<IxCol>& c_names){
     ixName = name;
     ixPath = path;
     keys = c_names;
     ixClass = c;
-    btree = new stx::btree_set<Entry>();
+    Comparator comparator(this);
+    btree = new stx::btree_set<IxElement, Comparator>(comparator);
     indexScan = new IX_IndexScan(btree, this);
 }
 
-IX_Manager::IX_Manager(const std::string& path, const std::string& name, const std::vector<std::string>& c_names, const std::string& m_refTbName, const std::vector<std::string>& m_refKeys){
+IX_Manager::IX_Manager(const std::string& path, const std::string& name, const std::vector<IxCol>& c_names, const std::string& m_refTbName, const std::vector<std::string>& m_refKeys){
     ixName = name;
     ixPath = path;
     keys = c_names;
     refTbName = m_refTbName;
     refKeys = m_refKeys;
     ixClass = "foreign";
-    btree = new stx::btree_set<Entry>();
+    Comparator comparator(this);
+    btree = new stx::btree_set<IxElement, Comparator>(comparator);
     indexScan = new IX_IndexScan(btree, this);
 }
 
-void IX_IndexScan::__lowestFill(Entry& entry, int len){
+void IX_IndexScan::__lowestFill(AttrList& entry){
     entry.rid = 0;
-    for (int i = len; i < im->keys.size(); i ++){
-        entry.vals[i] = AttrVal();
+    for (int i = entry.vals.size(); i < im->keys.size(); i ++){
+        entry.vals.push_back(AttrVal());
     }
 }
-void IX_IndexScan::__uppestFill(Entry& entry, int len){
+void IX_IndexScan::__uppestFill(AttrList& entry){
     entry.rid = -1;
     AttrVal val;
     val.type = POS_TYPE;
-    for (int i = len; i < im->keys.size(); i ++){
-        entry.vals[i] = val;
+    for (int i = entry.vals.size(); i < im->keys.size(); i ++){
+        entry.vals.push_back(val);
     }
 }
 
-void IX_IndexScan::openScan(const Entry& data, int num, CalcOp m_compOp){
+void IX_IndexScan::openScan(const AttrList& data, int num, CalcOp m_compOp){
+    IxElement lowRecord, upRecord;
     if (num > 1 && m_compOp != EQ_OP){
-        Entry lowerData(data);
-        __lowestFill(lowerData, num - 1);
-        iter = btree->lower_bound(lowerData);
-        Entry upperData(data);
-        __uppestFill(upperData, num - 1);
-        upperBound = btree->upper_bound(upperData);
+        AttrList lowerData(data, num - 1);
+        __lowestFill(lowerData);
+        im->restoreAttrList(lowerData, lowRecord.val);
+        iter = btree->lower_bound(lowRecord);
+        AttrList upperData(data, num - 1);
+        __uppestFill(upperData);
+        im->restoreAttrList(upperData, upRecord.val);
+        upperBound = btree->upper_bound(upRecord);
     }
     else{
         iter = btree->begin();
         upperBound = btree->end();
     }
-    Entry lowerData(data);
-    __lowestFill(lowerData, num);
-    Entry upperData(data);
-    __uppestFill(upperData, num);
+    AttrList lowerData(data, num);
+    __lowestFill(lowerData);
+    im->restoreAttrList(lowerData, lowRecord.val);
+    AttrList upperData(data);
+    __uppestFill(upperData);
+    im->restoreAttrList(upperData, upRecord.val);
     compOp = m_compOp;
     switch(m_compOp){
         case LT_OP:{
-            upperBound = btree->lower_bound(lowerData);
+            upperBound = btree->lower_bound(lowRecord);
             break;
         }
         case GT_OP:{
-            iter = btree->upper_bound(upperData);
+            iter = btree->upper_bound(upRecord);
             break;
         }
         case LE_OP:{
-            upperBound = btree->upper_bound(upperData);
+            upperBound = btree->upper_bound(upRecord);
             break;
         }
         case GE_OP:{
-            iter = btree->lower_bound(lowerData);
+            iter = btree->lower_bound(lowRecord);
             break;
         }
         case EQ_OP:{
-            iter = btree->lower_bound(lowerData);
-            upperBound = btree->upper_bound(upperData);
+            iter = btree->lower_bound(lowRecord);
+            upperBound = btree->upper_bound(upRecord);
             break;
         }
         case NE_OP:{
-            lowerMid = btree->lower_bound(lowerData);
-            upperMid = btree->upper_bound(upperData);
+            lowerMid = btree->lower_bound(lowRecord);
+            upperMid = btree->upper_bound(upRecord);
             break;
         }
         default: {}
@@ -151,7 +189,14 @@ int IX_IndexScan::getNextEntry(RID_t& rid){
     if (iter == upperBound){
         return -1;
     }
-    rid = iter->rid;
+    memcpy(&rid, iter->val, 8);
     iter ++;
     return 0;
+}
+
+bool Comparator::operator()(const IxElement& x, const IxElement& y) const{ 
+    AttrList a, b;
+    im->recordToAttrList(x.val, a);
+    im->recordToAttrList(y.val, b);
+    return a < b;
 }

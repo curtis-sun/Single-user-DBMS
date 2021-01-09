@@ -13,6 +13,7 @@ int yyerror(const char *);
     float val_f;
     char *val_s;
     Node *node;
+    Select* select;
 
     FieldList *__fieldList;
     Field* __field;
@@ -66,6 +67,7 @@ int yyerror(const char *);
 %type <identList> tableList columnList
 %type <selector> selector
 %type <aggregate> aggregate
+%type <select> select
 
 %start program
 
@@ -167,20 +169,13 @@ stmt:
             Node::setInstance($$);
             Node::execute();
         }
-    | SELECT selector FROM tableList WHERE whereClause
+    | select
         {
-            $$ = new Select($2, $4, $6);
-            Node::setInstance($$);
-            Node::execute();
-        }
-    | SELECT selector FROM tableList
-        {
-            $$ = new Select($2, $4);
+            $$ = $1;
             Node::setInstance($$);
             Node::execute();
         }
 
-    
 
     | CREATE INDEX IDENTIFIER ON IDENTIFIER '(' columnList ')'
         {
@@ -265,6 +260,17 @@ stmt:
             $$ = new DropIndex($3, $7);
             Node::setInstance($$);
             Node::execute();
+        }
+    ;
+
+select :
+    SELECT selector FROM tableList WHERE whereClause
+        {
+            $$ = new Select($2, $4, $6);
+        }
+    | SELECT selector FROM tableList
+        {
+            $$ = new Select($2, $4);
         }
     ;
 
@@ -444,6 +450,14 @@ relational:
     | col LIKE expression
         {
             $$ = new Relational(new Binary($1, CalcOp::LIKE_OP, $3), nullptr);
+        }
+    | col IN '(' valueList ')'
+        {
+            $$ = new Relational(nullptr, new InExpr($1, $4));
+        }
+    | col IN '(' select ')'
+        {
+            $$ = new Relational(nullptr, new InExpr($1, $4));
         }
     ;
 

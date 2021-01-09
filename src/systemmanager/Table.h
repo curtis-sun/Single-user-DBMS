@@ -24,7 +24,7 @@ class Table{
         }
         return __tablePath();
     }
-    void __setNotNull(uint8_t colId);
+    void __setNotNull(uint8_t colId, bool notNull = true);
     void __setDefault(uint8_t colId, char defaultValue[]);
     void __addIm(IX_Manager* im);
     void __addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass);
@@ -34,6 +34,7 @@ class Table{
     void __loadFiles(const std::string& subName = "");
 public:
     int __colId(const std::string& colName);
+    void __ixCol(const std::vector<std::string>& names, vector<IxCol>& cols);
     void setNotNull(uint8_t colId);
     void setDefault(uint8_t colId, char defaultValue[]);
     void setPrimary(const std::vector<std::string>& c_names, std::string priName);

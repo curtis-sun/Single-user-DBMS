@@ -17,18 +17,18 @@ static bool checkNotNulDefault(AttrVal& val, Table* table, int colId){
     return true;
 }
 
-static bool checkIndex(const std::vector<AttrVal>& valList, Table* table){
+static bool checkIndex(const std::vector<AttrVal>& valList, Table* table, RID_t updateRid = 0){
     for (int i = 0; i < table->ims.size(); i ++){
         if (table->ims[i]->ixClass == "unique" || table->ims[i]->ixClass == "pri"){
-            Entry entry;
+            AttrList entry;
             for (int k = 0; k < table->ims[i]->keys.size(); k ++){
-                std::string colName = table->ims[i]->keys[k];
+                std::string colName = table->ims[i]->keys[k].name;
                 int colId = table->__colId(colName);
-                entry.vals[k] = valList[colId - 1];
+                entry.vals.push_back(valList[colId - 1]);
             }
             table->ims[i]->indexScan->openScan(entry, table->ims[i]->keys.size(), EQ_OP);
             RID_t rid;
-            if(!table->ims[i]->indexScan->getNextEntry(rid)){
+            if(!table->ims[i]->indexScan->getNextEntry(rid) && rid != updateRid){
                 printf("warning: unique index %s cannot insert", table->ims[i]->ixName.c_str());
                 for (int k = 0; k < table->ims[i]->keys.size(); k ++){
                     printf(" %s", attrToString(entry.vals[k]).c_str());
@@ -39,11 +39,11 @@ static bool checkIndex(const std::vector<AttrVal>& valList, Table* table){
         }
         else if (table->ims[i]->ixClass == "foreign"){
             Table* refTb = Database::instance()->getTableByName(table->ims[i]->refTbName);
-            Entry entry;
+            AttrList entry;
             for (int k = 0; k < table->ims[i]->keys.size(); k ++){
-                std::string colName = table->ims[i]->keys[k];
+                std::string colName = table->ims[i]->keys[k].name;
                 int colId = table->__colId(colName);
-                entry.vals[k] = valList[colId - 1];
+                entry.vals.push_back(valList[colId - 1]);
             }
             refTb->priIx->indexScan->openScan(entry, table->ims[i]->keys.size(), EQ_OP);
             RID_t rid;
@@ -60,12 +60,12 @@ static bool checkIndex(const std::vector<AttrVal>& valList, Table* table){
     return true;
 }
 
-static bool checkIndex(const char* data, Table* table){
+static bool checkIndex(const char* data, Table* table, RID_t updateRid = 0){
     std::vector<AttrVal> attrValList;
     for (int i = 1; i < table->header->columnCnt; i ++){
         attrValList.push_back(recordToAttr(data + table->header->columnOffsets[i], table->header->columnOffsets[i + 1] - table->header->columnOffsets[i], table->header->columnTypes[i]));
     }
-    return checkIndex(attrValList, table);
+    return checkIndex(attrValList, table, updateRid);
 }
 
 void Insert::run(){
@@ -95,12 +95,12 @@ void Insert::run(){
         RID_t rid;
         table->rm->insertRecord(temp, rid);
         for (int j = 0; j < table->ims.size(); j ++){
-            Entry entry;
+            AttrList entry;
             entry.rid = rid;
             for (int k = 0; k < table->ims[j]->keys.size(); k ++){
-                std::string colName = table->ims[j]->keys[k];
+                std::string colName = table->ims[j]->keys[k].name;
                 int colId = table->__colId(colName);
-                entry.vals[k] = attrValList[colId - 1];
+                entry.vals.push_back(attrValList[colId - 1]);
             }
             table->ims[j]->insertEntry(entry);
         }
@@ -196,12 +196,12 @@ void Delete::run(){
         // delete
         table->rm->deleteRecord(rid);
         for (int j = 0; j < table->ims.size(); j ++){
-            Entry entry;
+            AttrList entry;
             entry.rid = rid;
             for (int k = 0; k < table->ims[j]->keys.size(); k ++){
-                std::string colName = table->ims[j]->keys[k];
+                std::string colName = table->ims[j]->keys[k].name;
                 int colId = table->__colId(colName);
-                entry.vals[k] = recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+                entry.vals.push_back(recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]));
             }
             table->ims[j]->deleteEntry(entry);
         }
@@ -241,18 +241,18 @@ void Update::run(){
             }
             restoreAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], val);
         }
-        if (!checkIndex(newData, table)){
+        if (!checkIndex(newData, table, rid)){
             return;
         }
         table->rm->updateRecord(rid, newData);
         for (int j = 0; j < table->ims.size(); j ++){
-            Entry oldEntry, newEntry;
+            AttrList oldEntry, newEntry;
             oldEntry.rid = newEntry.rid = rid;
             for (int k = 0; k < table->ims[j]->keys.size(); k ++){
-                std::string colName = table->ims[j]->keys[k];
+                std::string colName = table->ims[j]->keys[k].name;
                 int colId = table->__colId(colName);
-                oldEntry.vals[k] = recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
-                newEntry.vals[k] = recordToAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]);
+                oldEntry.vals.push_back(recordToAttr(data + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]));
+                newEntry.vals.push_back(recordToAttr(newData + table->header->columnOffsets[colId], table->header->columnOffsets[colId + 1] - table->header->columnOffsets[colId], table->header->columnTypes[colId]));
             }
             table->ims[j]->deleteEntry(oldEntry);
             table->ims[j]->insertEntry(newEntry);
@@ -261,6 +261,10 @@ void Update::run(){
 }
 
 void Select::run(){
+    run(nullptr);
+}
+
+void Select::run(std::vector<AttrVal>* selectResult){
     std::set<Row> rows;
     if (!clause){
         std::set<Row>* oldRows = nullptr, *newRows;
@@ -309,13 +313,20 @@ void Select::run(){
                 for (int i = 1; i < table->header->columnCnt; i ++){
                     int colLen = table->header->columnOffsets[i + 1] - table->header->columnOffsets[i];
                     AttrVal val = recordToAttr(data + table->header->columnOffsets[i], colLen, table->header->columnTypes[i]);
-                    std::string str = attrToString(val);
-                    printf(" %-*s ", str.length(), str.c_str());
-                    if (i < table->header->columnCnt - 1 || j < tableList->list.size() - 1){
-                        printf("|");
+                    if (selectResult){
+                        if (j == 0 && i == 1){
+                            selectResult->push_back(val);
+                        }
                     }
                     else{
-                        printf("\n");
+                        std::string str = attrToString(val);
+                        printf(" %-*s ", str.length(), str.c_str());
+                        if (i < table->header->columnCnt - 1 || j < tableList->list.size() - 1){
+                            printf("|");
+                        }
+                        else{
+                            printf("\n");
+                        }
                     }
                 }
             }
@@ -330,13 +341,20 @@ void Select::run(){
                 }
                 for (int i = 0; i < selector->valueList.list.size(); i ++){
                     AttrVal val = selector->valueList.list[i]->calc(&rids, gap);
-                    std::string str = attrToString(val);
-                    printf(" %-*s ", str.length(), str.c_str());
-                    if (i < selector->valueList.list.size() - 1){
-                        printf("|");
+                    if (selectResult){
+                        if (i == 0){
+                            selectResult->push_back(val);
+                        }
                     }
                     else{
-                        printf("\n");
+                        std::string str = attrToString(val);
+                        printf(" %-*s ", str.length(), str.c_str());
+                        if (i < selector->valueList.list.size() - 1){
+                            printf("|");
+                        }
+                        else{
+                            printf("\n");
+                        }
                     }
                 }
             }
@@ -344,13 +362,20 @@ void Select::run(){
         else{
             for (int i = 0; i < selector->agrgList.size(); i ++){
                 AttrVal val = selector->agrgList[i]->calc(&rows, tableList, gap);
-                std::string str = attrToString(val);
-                printf(" %-*s ", str.length(), str.c_str());
-                if (i < selector->agrgList.size() - 1){
-                    printf("|");
+                if (selectResult){
+                    if (i == 0){
+                        selectResult->push_back(val);
+                    }
                 }
                 else{
-                    printf("\n");
+                    std::string str = attrToString(val);
+                    printf(" %-*s ", str.length(), str.c_str());
+                    if (i < selector->agrgList.size() - 1){
+                        printf("|");
+                    }
+                    else{
+                        printf("\n");
+                    }
                 }
             }
         }

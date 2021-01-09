@@ -23,13 +23,41 @@ int Table::__colId(const std::string& colName){
     return -1;
 }
 
-void Table::__setNotNull(uint8_t colId){
-    header->constraints[colId] |= 4;
+void Table::__setNotNull(uint8_t colId, bool notNull){
+    if (notNull){
+        header->constraints[colId] |= 4;
+    }
+    else{
+        header->constraints[colId] &= 251;
+    }
 }
 
 void Table::__setDefault(uint8_t colId, char defaultValue[]){
-    header->constraints[colId] |= 1;
-    memcpy(rm ->defaultRow + header->columnOffsets[colId], defaultValue, header->columnOffsets[colId + 1] - header->columnOffsets[colId]);
+    if (defaultValue){
+        header->constraints[colId] |= 1;
+        memcpy(rm ->defaultRow + header->columnOffsets[colId], defaultValue, header->columnOffsets[colId + 1] - header->columnOffsets[colId]);
+    }
+    else{
+        header->constraints[colId] &= 254;
+        memset(rm ->defaultRow + header->columnOffsets[colId], 0, header->columnOffsets[colId + 1] - header->columnOffsets[colId]);
+    }
+}
+
+void Table::__ixCol(const std::vector<std::string>& names, vector<IxCol>& cols){
+    for (int i = 0; i < names.size(); i ++){
+        IxCol col;
+        col.name = names[i];
+        int colId = __colId(names[i]);
+        col.type = header->columnTypes[colId];
+        int colLen = header->columnOffsets[colId + 1] - header->columnOffsets[colId];
+        if (cols.size() == 0){
+            col.offset = colLen;
+        }
+        else{
+            col.offset = cols.at(i - 1).offset + colLen;
+        }
+        cols.push_back(col);
+    }
 }
 
 void Table::__addIm(IX_Manager* im){
@@ -45,31 +73,35 @@ void Table::__addIm(IX_Manager* im){
 }
 
 void Table::__addIndex(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& ixClass){
-    __addIm(new IX_Manager(__tablePath(ixClass), ixName, ixClass, c_names));
+    std::vector<IxCol> cols;
+    __ixCol(c_names, cols);
+    __addIm(new IX_Manager(__tablePath(ixClass), ixName, ixClass, cols));
     if (ixClass == "pri"){
         priIx = ims[ims.size() - 1];
     }
 }
 
 void Table:: __addForeignKey(const std::vector<std::string>& c_names,  const std::string& ixName, const std::string& refTbName, const std::vector<std::string>& refKeys){
-    __addIm(new IX_Manager(__tablePath("foreign"), ixName, c_names, refTbName, refKeys));
+    std::vector<IxCol> cols;
+    __ixCol(c_names, cols);
+    __addIm(new IX_Manager(__tablePath("foreign"), ixName, cols, refTbName, refKeys));
 }
 
 int Table::__loadIndexFromTable(int index){
     int columnCnt = ims[index]->keys.size();
     uint8_t colIds[columnCnt];
     for (int i = 0; i < columnCnt; i ++){
-        colIds[i] = __colId(ims[index]->keys[i]);
+        colIds[i] = __colId(ims[index]->keys[i].name);
     }
     rm ->fileScan->openScan();
     char data[header->pminlen];
     RID_t rid;
     while(!rm->fileScan->getNextEntry(rid)){
         rm->getRecord(rid, data);
-        Entry entry;
+        AttrList entry;
         entry.rid = rid;
         for (int i = 0; i < columnCnt; i ++){
-            entry.vals[i] = recordToAttr(data + header->columnOffsets[colIds[i]], header->columnOffsets[colIds[i] + 1] - header->columnOffsets[colIds[i]], header->columnTypes[colIds[i]]);
+            entry.vals.push_back(recordToAttr(data + header->columnOffsets[colIds[i]], header->columnOffsets[colIds[i] + 1] - header->columnOffsets[colIds[i]], header->columnTypes[colIds[i]]));
         }
         ims[index] -> insertEntry(entry);
     }
@@ -272,7 +304,7 @@ int Table::addForeignKey(const std::vector<std::string>& c_names, const std::str
         throw "error: foreign key column number more than primary key";
     }
     for (int i = 0; i < refKeys.size(); i ++){
-        if (refKeys[i] != refTb->priIx->keys[i]){
+        if (refKeys[i] != refTb->priIx->keys[i].name){
             throw "error: foreign key column " + refKeys[i] + " cannot be found in primary key";
         }
     }
@@ -357,12 +389,6 @@ void Table::showTable(){
         if (nameLen > maxNameLen){
             maxNameLen = nameLen;
         }
-        if (header->constraints[i] & 1){
-            int valLen = header->columnOffsets[i + 1] - header->columnOffsets[i] - 1;
-            if (valLen + 1 > maxDefaultLen){
-                maxDefaultLen = valLen + 1;
-            }
-        }
     }
     printf(" Table %s.%s\n", dbname.c_str(), name.c_str());
     printf(" %-*s ", maxNameLen, "Column");
@@ -377,7 +403,6 @@ void Table::showTable(){
     }
     printf("\n");
     std::string type; 
-    char defaultValue[maxDefaultLen];
     for (int i = 1; i < header->columnCnt; i ++){
         printf(" %-*s ", maxNameLen, header->columnNames[i]);
         switch(header->columnTypes[i]){
@@ -414,9 +439,8 @@ void Table::showTable(){
             printf("          |");
         }
         if (header->constraints[i] & 1){
-            memcpy(defaultValue, rm ->defaultRow + header->columnOffsets[i] + 1, header->columnOffsets[i + 1] - header->columnOffsets[i] - 1);
-            defaultValue[header->columnOffsets[i + 1] - header->columnOffsets[i] - 1] = 0; // string last '\0'
-            printf(" %-*s\n", maxDefaultLen, defaultValue);
+            AttrVal val = recordToAttr(rm ->defaultRow + header->columnOffsets[i], header->columnOffsets[i + 1] - header->columnOffsets[i], header->columnTypes[i]);
+            printf(" %s\n", attrToString(val).c_str());
         }
         else{
             printf(" %-*s\n", maxDefaultLen, "");
@@ -581,7 +605,9 @@ int Table::dropColumn(char colName[MAX_NAME_LEN]){
     header = newHeader;
 
     for (int i = 0; i < ims.size(); i ++){
-        if (std::find(ims[i]->keys.begin(), ims[i]->keys.end(), colName) != ims[i]->keys.end()){
+        IxCol col;
+        col.name = colName;
+        if (std::find(ims[i]->keys.begin(), ims[i]->keys.end(), col) != ims[i]->keys.end()){
             dropIndex(i);
             i--;
         }
@@ -605,7 +631,7 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
     }
     newHeader->columnTypes[colId] = newType;
     uint16_t colLen = newHeader->columnOffsets[colId + 1] - newHeader->columnOffsets[colId];
-    newHeader->pageCnt = 1;
+    newHeader->pageCnt = 0;
     newHeader->nextAvailable = (RID_t) -1;
     for (int i = colId; i < newHeader->columnCnt; i ++){
         newHeader->columnOffsets[i + 1] = newHeader->columnOffsets[i + 1] + newColLen - colLen;
@@ -633,15 +659,17 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
         }
         else{
             // 检查现有数据是否有空数据？
-            if (!(header->constraints[colId] & 4) && notNull){
-                if (defaultValue){
-                    memcpy(newData + newHeader->columnOffsets[colId], defaultValue, newColLen);
-                }
-                else{
-                    delete newHeader;
-                    delete newRm;
-                    throw "error: null exist at row " + to_string(rid);
-                }
+            if (notNull && !defaultValue){
+                delete newHeader;
+                newRm->destroyFile();
+                delete newRm;
+                throw "error: null exist at row " + to_string(rid);
+            }
+            if (defaultValue){
+                memcpy(newData + newHeader->columnOffsets[colId], defaultValue, newColLen);
+            }
+            else{
+                memset(newData + newHeader->columnOffsets[colId], 0, newColLen);
             }
         }
         memcpy(newData + newHeader->columnOffsets[colId + 1], data + header->columnOffsets[colId + 1], header->pminlen - header->columnOffsets[colId + 1]);
@@ -672,19 +700,22 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
     rm = newRm;
     header = newHeader;
 
-    if (notNull){
-        __setNotNull(colId);
-    }
-    if (defaultValue){
-        __setDefault(colId, defaultValue);
-    }
+    __setNotNull(colId, notNull);
+    __setDefault(colId, defaultValue);
 
     // 相应索引改名
     for (int i = 0; i < ims.size(); i ++){
         ims[i] ->destroyIndex();
-        std::vector<std::string>::iterator iter = std::find(ims[i]->keys.begin(), ims[i]->keys.end(), colName);
+        IxCol col;
+        col.name = colName;
+        auto iter = std::find(ims[i]->keys.begin(), ims[i]->keys.end(), col);
         if (iter != ims[i]->keys.end()){
-            *iter = newColName;
+            iter->name = newColName;
+            iter->type = newType;
+            while(iter != ims[i]->keys.end()){
+                iter->offset = iter->offset + newColLen - colLen;
+                ++ iter;
+            }
         }
         __loadIndexFromTable(i);
     }
