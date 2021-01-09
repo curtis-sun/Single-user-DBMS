@@ -57,8 +57,10 @@ int Database::openDatabase(){
     for (int i = 0; i < tbNames.size(); i ++){
         Table* temp = new Table(dbname, tbNames[i]);
         temp->openTable();
+        printf("info: table %s has been opened\n", temp->name.c_str());
         tables.push_back(temp);
     }
+    printf("info: database %s has been opened\n", dbname.c_str());
     return err;
 }
 int Database::closeDatabase(){
@@ -66,6 +68,7 @@ int Database::closeDatabase(){
         tables[i]->closeTable();
         printf("info: table %s has been closed\n", tables[i]->name.c_str());
     }
+    printf("info: database %s has been closed\n", dbname.c_str());
 }
 
 void Database::showTables(){

@@ -1,1 +1,0 @@
-/usr/bin/c++    -rdynamic CMakeFiles/Single-user-DBMS.dir/main.cpp.o  -o Single-user-DBMS querymanager/libsqlparser.a libSingle-user-DBMS_lib.a 
