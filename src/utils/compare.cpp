@@ -78,7 +78,7 @@ static void restoreAttr(char* data, int len, const AttrVal& val){
 			break;
 		}
 		default:{
-			throw "error: insert unknown type value";
+			throw "error: restore unknown value type " + std::to_string(val.type);
 		}
 	}
 }
@@ -400,6 +400,68 @@ static AttrVal judge(const AttrVal& a, CalcOp compOp){
 		}
 		default:{
 			throw "error: unknown unary operation " + std::to_string(compOp);
+		}
+	}
+}
+
+static std::string calcToString(CalcOp op){
+	switch(op){
+		case ADD_OP:{
+			return "+";
+		} 
+		case SUB_OP:{
+			return "-";
+		} 
+		case MUL_OP:{
+			return "x";
+		} 
+		case DIV_OP:{
+			return "/";
+		} 
+		case LIKE_OP:{
+			return "like";
+		} 
+		case OR_OP:{
+			return "or";
+		} 
+		case AND_OP:{
+			return "and";
+		} 
+		case EQ_OP:{
+			return "=";
+		} 
+		case LT_OP:{
+			return "<";
+		} 
+		case GT_OP:{
+			return ">";
+		} 
+		case LE_OP:{
+			return "<=";
+		} 
+		case GE_OP:{
+			return ">=";
+		} 
+		case NE_OP:{
+			return "!=";
+		} 
+		case IS_NULL:{
+			return "is null";
+		} 
+		case NOT_NULL:{
+			return "is not null";
+		} 
+		case IN_OP:{
+			return "in";
+		} 
+		case PRI_OP:{
+			return "constant";
+		} 
+		case COL_OP:{
+			return "column";
+		}
+		default:{
+			return "";
 		}
 	}
 }

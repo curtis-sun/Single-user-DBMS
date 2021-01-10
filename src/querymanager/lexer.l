@@ -1,7 +1,6 @@
 %{
 #include <cstdio>
 #include <string.h>
-#include "SqlParser.h"
 #include "QueryManager.h"
 #include "../utils/pagedef.h"
 # include "parser.tab.hpp"
@@ -9,7 +8,7 @@
 int yyerror(const char *);
 %}
 
-DATE_FORMAT     '[0-9]{4}-[0-9]{1,2}-[0-9]{1,2}'
+DATE_FORMAT     '[0-9]{4}[-/][0-9]{1,2}[-/][0-9]{1,2}'
 IDENTIFIER       [a-zA-Z][a-zA-Z0-9_]*
 STRING_FORMAT   '[^']*'
 INT_FORMAT      [0-9]+

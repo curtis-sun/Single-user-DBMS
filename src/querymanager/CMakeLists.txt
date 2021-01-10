@@ -19,13 +19,11 @@ add_library(sqlparser
 set(SOURCE
         ${SOURCE}
         ${CMAKE_CURRENT_SOURCE_DIR}/QueryManager.cpp
-        ${CMAKE_CURRENT_SOURCE_DIR}/SqlParser.cpp
         PARENT_SCOPE
         )
 
 set(HEADERS
         ${HEADERS}
         ${CMAKE_CURRENT_SOURCE_DIR}/QueryManager.h
-        ${CMAKE_CURRENT_SOURCE_DIR}/SqlParser.h
         PARENT_SCOPE
         )

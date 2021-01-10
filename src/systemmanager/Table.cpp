@@ -321,6 +321,7 @@ int Table::createTable(const std::vector<AttrType>& types, const std::vector<int
     }
     header->nextAvailable = (RID_t) -1;
     header->pageCnt = 0;
+    header->checkCnt = 0;
     header->columnCnt = 1 + names.size();
     header->columnOffsets[0] = 0;
     header->columnOffsets[1] = 8;
@@ -552,6 +553,7 @@ int Table::addColumn(AttrType type, int colLen, char colName[MAX_NAME_LEN], bool
 int Table::dropColumn(char colName[MAX_NAME_LEN]){
     TableHeader* newHeader = new TableHeader(*header);
     newHeader->pageCnt = 0;
+    newHeader->checkCnt = 0;
     newHeader->nextAvailable = (RID_t) -1;
     uint8_t colId = __colId(colName);
     newHeader->columnCnt --;
@@ -562,6 +564,7 @@ int Table::dropColumn(char colName[MAX_NAME_LEN]){
         newHeader->columnOffsets[i + 1] = newHeader->columnOffsets[i + 2] - colLen;
     }
     newHeader->pminlen = newHeader->columnOffsets[newHeader->columnCnt];
+    // delete check
     
     RecordManager* newRm = new RecordManager(__tablePath(), newHeader,  __tableTemp());
     int err = newRm ->createFile();
@@ -632,6 +635,7 @@ int Table::changeColumn(char colName[MAX_NAME_LEN], AttrType newType, int newCol
     newHeader->columnTypes[colId] = newType;
     uint16_t colLen = newHeader->columnOffsets[colId + 1] - newHeader->columnOffsets[colId];
     newHeader->pageCnt = 0;
+    newHeader->checkCnt = 0;
     newHeader->nextAvailable = (RID_t) -1;
     for (int i = colId; i < newHeader->columnCnt; i ++){
         newHeader->columnOffsets[i + 1] = newHeader->columnOffsets[i + 1] + newColLen - colLen;

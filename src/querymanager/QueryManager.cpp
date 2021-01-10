@@ -1,6 +1,224 @@
 # include "QueryManager.h"
 # include <fstream>
 # include <cassert>
+# include <sstream>
+
+Node* Node::node = nullptr;
+
+void Expression::output(std::ostringstream& out) {}
+
+Expression* Expression::input(std::istringstream& in){
+    int temp;
+    in >> temp;
+    CalcOp op = (CalcOp)temp;
+    switch(op){
+        case ADD_OP:
+        case SUB_OP: 
+        case MUL_OP: 
+        case DIV_OP: 
+        case LIKE_OP: 
+        case EQ_OP: 
+        case LT_OP: 
+        case GT_OP: 
+        case LE_OP: 
+        case GE_OP: 
+        case NE_OP:{
+            Expression* left = input(in);
+            Expression* right = input(in);
+            return new Binary(left, op, right);
+        }
+        case OR_OP:{
+            LogicalAnd* left = (LogicalAnd*)input(in);
+            WhereClause* where = new WhereClause(left);
+            in >> temp;
+            op = (CalcOp)temp;
+            while(op == OR_OP){
+                where->addLogicalAnd((LogicalAnd*)input(in));
+                in >> temp;
+                op = (CalcOp)temp;
+            }
+            return where;
+        }
+        case AND_OP:{
+            Relational* left = new Relational(in);
+            LogicalAnd* where = new LogicalAnd(left);
+            in >> temp;
+            op = (CalcOp)temp;
+            while(op == AND_OP){
+                where->addRelational(new Relational(in));
+                in >> temp;
+                op = (CalcOp)temp;
+            }
+            return where;
+        }  
+        case IS_NULL:
+        case NOT_NULL:{
+            Expression* child = input(in);
+            return new Unary(child, op);
+        } 
+        case IN_OP:{
+            return new InExpr(in);
+        } 
+        case PRI_OP:{
+            return new Primary(in);
+        } 
+        case COL_OP: {
+            return new Col(in);
+        }
+        default: {
+            throw "error: expression input unknown operator " + to_string(op);
+        }
+    }
+}
+
+Primary::Primary(std::istringstream& in): Expression(PRI_OP){
+    int temp;
+    in >> temp;
+    val.type = (AttrType)temp;
+    switch(val.type){
+        case STRING:{
+            std::string str;
+            in >> str;
+            memcpy(val.s, str.c_str(), str.length());
+            val.s[str.length()] = 0; // end of string
+            break;
+        }
+        case INTEGER:
+        case DATE:{
+            in >> val.val.i;
+            break;
+        }
+        case FLOAT:{
+            in >> val.val.f;
+            break;
+        }
+        case NO_TYPE:{
+            break;
+        }
+        default:{
+            throw "error: unknown primary value";
+        }
+    }
+}
+
+void Primary::output(std::ostringstream& out) {
+    out << op << " " << int(val.type) << " ";
+    switch(val.type){
+        case STRING:{
+            out << val.s << " ";
+            break;
+        }
+        case INTEGER:
+        case DATE:{
+            out << val.val.i << " ";
+            break;
+        }
+        case FLOAT:{
+            out << val.val.f << " ";
+            break;
+        }
+        case NO_TYPE:{
+            break;
+        }
+        default:{
+            throw "error: unknown primary value";
+        }
+    }
+}
+
+Col::Col(std::istringstream& in):Expression(COL_OP){
+    in >> colName;
+    table = nullptr;
+}
+
+void Col::output(std::ostringstream& out) {
+    out << op << " " << colName << " ";
+}
+
+Relational::Relational(std::istringstream& in){
+    int temp;
+    in >> temp;
+    op = (CalcOp)temp;
+    switch(op){
+        case LIKE_OP: 
+        case EQ_OP: 
+        case LT_OP: 
+        case GT_OP: 
+        case LE_OP: 
+        case GE_OP: 
+        case NE_OP:{
+            binary = (Binary*)input(in);
+            unary = nullptr;
+            break;
+        }
+        case IS_NULL:
+        case NOT_NULL:
+        case IN_OP:{
+            unary = (Unary*)input(in);
+            binary = nullptr;
+            break;
+        }
+        default: {
+            throw "error: relational cannot deal with operator " + to_string(op);
+        }
+    }
+    if (binary){
+        col = (Col*)binary->left;
+        for (auto i = binary->tbs.begin(); i != binary->tbs.end(); i ++){
+            tbs.insert(*i);
+        }
+    }
+    else{
+        col = (Col*)unary->child;
+        for (auto i = unary->tbs.begin(); i != unary->tbs.end(); i ++){
+            tbs.insert(*i);
+        }
+    }
+}
+
+void Relational::output(std::ostringstream& out) {
+    out << op << " ";
+    if (binary){
+        binary->output(out);
+    }
+    else{
+        unary->output(out);
+    }
+}
+
+void LogicalAnd::output(std::ostringstream& out) {
+    for (int i = 0; i < exprList.size(); i ++){
+        out << op << " ";
+        exprList[i]->output(out);
+    }
+    out << int(ADD_OP) << " ";
+}
+
+void WhereClause::output(std::ostringstream& out) {
+    for (int i = 0; i < exprList.size(); i ++){
+        out << op << " ";
+        exprList[i]->output(out);
+    }
+    out << int(ADD_OP) << " ";
+}
+
+void InExpr::output(std::ostringstream& out) {
+    Unary::output(out);
+    int len = valList->size();
+    out << len << " ";
+    for (int i = 0; i < len; i ++){
+        Primary(valList->at(i)).output(out);
+    }
+}
+
+InExpr::InExpr(std::istringstream& in): Unary(input(in), IN_OP) {
+    valList = new std::vector<AttrVal>();
+    int len;
+    in >> len;
+    for (int i = 0; i < len; i ++){
+        valList->push_back(input(in)->calc(nullptr));
+    }
+}
 
 static bool checkNotNulDefault(AttrVal& val, Table* table, int colId){
     if (val.type == NO_TYPE){
@@ -69,7 +287,13 @@ static bool checkIndex(const char* data, Table* table, RID_t updateRid = 0){
 }
 
 void Insert::run(){
+    std::map<std::string, RID_t> rids;
     Table* table = Database::instance()->getTableByName(tbName);
+    std::vector<Expression*> exprs;
+    for (int i = 0; i < table->header->checkCnt; i ++){
+        istringstream in(table->header->checks[i]);
+        exprs.push_back(Expression::input(in));
+    }
     for (int i = 0; i < lists->list.size(); i ++){
         bool flag = true;
         std::vector<AttrVal> attrValList;
@@ -94,6 +318,19 @@ void Insert::run(){
         }
         RID_t rid;
         table->rm->insertRecord(temp, rid);
+        rids[tbName] = rid;
+        for (int j = 0; j < exprs.size(); j ++){
+            AttrVal val = exprs[j]->calc(&rids, table);
+            if (val.type != INTEGER || !val.val.i){
+                printf("warning: row %d check fail\n", i);
+                flag = false;
+                break;
+            }
+        }
+        if (!flag){
+            table->rm->deleteRecord(rid);
+            continue;
+        }
         for (int j = 0; j < table->ims.size(); j ++){
             AttrList entry;
             entry.rid = rid;
@@ -104,6 +341,9 @@ void Insert::run(){
             }
             table->ims[j]->insertEntry(entry);
         }
+    }
+    for (int i = 0; i < exprs.size(); i ++){
+        delete exprs[i];
     }
 }
 
@@ -404,7 +644,12 @@ void Copy::run(){
             line.replace(position, delimiter.length(), ","); 
             colId ++;
             oldPosition = position + 1; 
+            if (colId == table->header->columnCnt){
+                line = line.substr(0, position + 1);
+                break;
+            }
         }
+
         if (oldPosition < line.length()){
             if (table->header->columnTypes[colId] == STRING){
                 if (line[oldPosition] != 39 || line[line.length() - 1] != 39){

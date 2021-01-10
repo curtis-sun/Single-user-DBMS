@@ -270,7 +270,7 @@ select :
         }
     | SELECT selector FROM tableList
         {
-            $$ = new Select($2, $4);
+            $$ = new Select($2, $4, nullptr);
         }
     ;
 
@@ -311,6 +311,10 @@ field  :
     | FOREIGN KEY '(' IDENTIFIER ')' REFERENCES IDENTIFIER '(' IDENTIFIER ')'
         {
             $$ = new ForeignField($4, $7, $9);
+        }
+    | CHECK '(' whereClause ')'
+        {
+            $$ = new CheckField($3);
         }
     ;
 
